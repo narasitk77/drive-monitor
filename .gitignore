@@ -1,7 +1,9 @@
 token.json
 credentials.json
+change_tokens.json
 __pycache__/
 *.pyc
 .env
 .venv/
 venv/
+.claude/

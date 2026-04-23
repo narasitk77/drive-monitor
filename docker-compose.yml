@@ -1,0 +1,24 @@
+services:
+  drive-monitor:
+    build: .
+    ports:
+      - "5001:5001"
+    volumes:
+      # credentials.json must exist on host before first run
+      - ./credentials.json:/app/data/credentials.json:ro
+      # Persistent storage for token.json and change_tokens.json
+      - drive_data:/app/data
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATA_DIR=/app/data
+      # Remove OAUTHLIB_INSECURE_TRANSPORT when using HTTPS in production
+      - OAUTHLIB_INSECURE_TRANSPORT=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  drive_data:

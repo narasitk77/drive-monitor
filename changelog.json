@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.4.0",
+    "date": "2026-04-23",
+    "tag": "feat",
+    "changes": [
+      "ตรวจจับไฟล์/โฟลเดอร์ที่ย้ายระหว่าง drive ด้วย Google Drive Changes API",
+      "ไฟล์ที่ย้ายจาก Production Team เข้า Video 2026 ขึ้นใน Video 2026 tab ทันที",
+      "change_tokens.json เก็บ state ข้าม server restart",
+      "Docker support: Dockerfile + docker-compose.yml + gunicorn",
+      "ProxyFix middleware สำหรับ production reverse proxy"
+    ]
+  },
+  {
     "version": "1.3.0",
     "date": "2026-04-23",
     "tag": "feat",
