@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: drive-monitor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: singapore
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATA_DIR
+        value: /app/data
+      - key: CREDENTIALS_JSON
+        sync: false          # set manually in Render dashboard
+    disk:
+      name: drive-data
+      mountPath: /app/data
+      sizeGB: 1

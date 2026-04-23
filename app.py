@@ -1,6 +1,8 @@
 import os
 import json
 import time
+import base64
+import tempfile
 import datetime
 from flask import Flask, render_template, jsonify, redirect, request, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -11,19 +13,36 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # for reverse proxy / Docker
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
-    # Dev fallback — sessions reset on restart; set SECRET_KEY in production
     SECRET_KEY = os.urandom(24)
 app.secret_key = SECRET_KEY
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-DATA_DIR = os.environ.get("DATA_DIR", ".")  # override via env for Docker volume
-CREDENTIALS_FILE = os.path.join(DATA_DIR, "credentials.json")
+DATA_DIR = os.environ.get("DATA_DIR", ".")
 TOKEN_FILE = os.path.join(DATA_DIR, "token.json")
 CHANGE_TOKENS_FILE = os.path.join(DATA_DIR, "change_tokens.json")
+
+# credentials.json: prefer file, fall back to CREDENTIALS_JSON env var (base64)
+_cred_tmp = None
+def get_credentials_file():
+    global _cred_tmp
+    local = os.path.join(DATA_DIR, "credentials.json")
+    if os.path.exists(local):
+        return local
+    env_b64 = os.environ.get("CREDENTIALS_JSON")
+    if env_b64:
+        if _cred_tmp and os.path.exists(_cred_tmp):
+            return _cred_tmp
+        decoded = base64.b64decode(env_b64).decode()
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        tmp.write(decoded)
+        tmp.flush()
+        _cred_tmp = tmp.name
+        return _cred_tmp
+    return local  # will fail gracefully later
 
 TARGET_DRIVE_NAMES = ["Video 2026", "Production Team"]
 FINAL_VIDEO_FOLDER_ID = "1HXvXzXlgOhZcdhjK7XagHJe2-HbfxTrb"
@@ -317,22 +336,23 @@ def index():
 
 @app.route("/auth/login")
 def auth_login():
-    if not os.path.exists(CREDENTIALS_FILE):
-        return "ไม่พบไฟล์ credentials.json — กรุณาดูขั้นตอนการตั้งค่า", 500
+    creds_file = get_credentials_file()
+    if not os.path.exists(creds_file):
+        return "ไม่พบ credentials — ตั้งค่า CREDENTIALS_JSON หรือวางไฟล์ credentials.json", 500
     flow = Flow.from_client_secrets_file(
-        CREDENTIALS_FILE, scopes=SCOPES,
+        creds_file, scopes=SCOPES,
         redirect_uri=url_for("auth_callback", _external=True),
     )
     auth_url, state = flow.authorization_url(access_type="offline", prompt="consent")
-    session["oauth_state"]    = state
-    session["code_verifier"]  = flow.code_verifier
+    session["oauth_state"]   = state
+    session["code_verifier"] = flow.code_verifier
     return redirect(auth_url)
 
 
 @app.route("/auth/callback")
 def auth_callback():
     flow = Flow.from_client_secrets_file(
-        CREDENTIALS_FILE, scopes=SCOPES,
+        get_credentials_file(), scopes=SCOPES,
         redirect_uri=url_for("auth_callback", _external=True),
         state=session.get("oauth_state"),
     )
