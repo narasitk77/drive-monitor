@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drive Monitor — Video 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3348;
+      --text: #e8eaf0; --muted: #7b8099; --accent: #4f7cff; --green: #2dca73;
+      --amber: #f5a623; --red: #ff5a5f; --purple: #a855f7; --cyan: #22d3ee;
+      --pink: #ec4899; --orange: #f97316; --r: 10px;
+      --font: 'IBM Plex Sans Thai', sans-serif; --mono: 'IBM Plex Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; font-size: 14px; line-height: 1.6; }
+
+    /* Header */
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 200; }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+    .logo svg { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.live { background: var(--green); box-shadow: 0 0 7px var(--green); animation: pulse 2s infinite; }
+    .dot.err { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .ts { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; border: none; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: opacity .15s, transform .1s; }
+    .btn:hover { opacity: .85; transform: translateY(-1px); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .icon-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--muted); border-radius: 4px; display:inline-flex;align-items:center; transition: color .15s, background .15s; }
+    .icon-btn:hover { color: var(--text); background: var(--surface2); }
+
+    main { padding: 20px 24px 48px; max-width: 1200px; margin: 0 auto; }
+
+    /* Auth banner */
+    #auth-banner { background: linear-gradient(135deg,#1e3a5f,#1a1d27); border:1px solid #2e4a7a; border-radius:var(--r); padding:48px; text-align:center; margin:80px auto; max-width:440px; }
+    #auth-banner h2 { font-size: 20px; margin-bottom: 8px; }
+    #auth-banner p { color: var(--muted); margin-bottom: 24px; font-size: 13px; }
+
+    /* Drive tabs */
+    .drive-tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 4px; width: fit-content; flex-wrap: wrap; }
+    .drive-tab { padding: 7px 18px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--muted); border: none; background: none; font-family: var(--font); transition: all .15s; white-space: nowrap; }
+    .drive-tab.active { background: var(--accent); color: #fff; }
+    .drive-tab[data-drive="Final Video"].active { background: var(--orange); }
+    .drive-tab:hover:not(.active) { color: var(--text); }
+
+    /* Top bar */
+    .top-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .top-bar input[type="text"] { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 12px; font-family: var(--font); font-size: 13px; outline: none; transition: border-color .15s; min-width: 200px; }
+    .top-bar input:focus { border-color: var(--accent); }
+    .top-bar select { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px; font-family: var(--font); font-size: 13px; outline: none; cursor: pointer; }
+    .spacer { flex: 1; }
+    .countdown-wrap { display:flex;align-items:center;gap:6px; }
+    .cdown { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 28px; text-align: right; }
+
+    /* Summary cards */
+    .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 20px; }
+    .scard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; }
+    .scard .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+    .scard .val { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+
+    /* Outlet table */
+    .outlet-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .outlet-head { display: grid; grid-template-columns: 2fr 1fr 80px 80px 80px 160px 40px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+    .outlet-head span { padding: 9px 14px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .outlet-row-wrap { border-bottom: 1px solid var(--border); }
+    .outlet-row-wrap:last-child { border-bottom: none; }
+    .outlet-row { display: grid; grid-template-columns: 2fr 1fr 80px 80px 80px 160px 40px; align-items: center; cursor: pointer; transition: background .1s; }
+    .outlet-row:hover { background: var(--surface2); }
+    .outlet-row.expanded { background: var(--surface2); }
+    .outlet-row > div { padding: 12px 14px; }
+    .outlet-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+    .odot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .badge-new-count { display: inline-flex; align-items: center; background: var(--green); color: #000; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-left: 6px; }
+    .num { font-family: var(--mono); font-size: 13px; }
+    .num.footage { color: var(--accent); }
+    .num.audio { color: var(--purple); }
+    .num.zero { color: var(--muted); }
+    .time-main { font-size: 12px; font-family: var(--mono); }
+    .time-rel { font-size: 11px; color: var(--muted); }
+    .chevron { transition: transform .2s; color: var(--muted); }
+    .outlet-row.expanded .chevron { transform: rotate(90deg); }
+
+    /* File drawer */
+    .file-drawer { display: none; border-top: 1px solid var(--border); background: #13151f; }
+    .file-drawer.open { display: block; }
+    .file-drawer table { width: 100%; border-collapse: collapse; }
+    .file-drawer thead th { padding: 8px 14px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; background: #0f1117; border-bottom: 1px solid var(--border); text-align: left; }
+    .file-drawer tbody tr { border-bottom: 1px solid #1e2130; transition: background .1s; }
+    .file-drawer tbody tr:last-child { border-bottom: none; }
+    .file-drawer tbody tr:hover { background: #1a1d27; }
+    .file-drawer tbody td { padding: 9px 14px; }
+    .fname { font-weight: 500; font-size: 13px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fpath { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 1px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { display:inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-footage  { background: rgba(79,124,255,.15); color: #7aa0ff; }
+    .badge-audio    { background: rgba(168,85,247,.15); color: #c084fc; }
+    .badge-graphic  { background: rgba(236,72,153,.15); color: #f472b6; }
+    .badge-script   { background: rgba(34,211,238,.15); color: #22d3ee; }
+    .badge-final    { background: rgba(249,115,22,.15); color: #fb923c; }
+    .badge-other    { background: rgba(123,128,153,.15); color: var(--muted); }
+    .badge-new-inline { display:inline-block; background: var(--green); color: #000; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 5px; vertical-align: middle; }
+    .sz { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+    /* Empty / Loading */
+    .empty { padding: 40px; text-align: center; color: var(--muted); }
+    .spinner { display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:6px; }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ─── Changelog Drawer ─── */
+    .cl-trigger { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; background: none; border: none; font-family: var(--font); padding: 0; transition: color .15s; }
+    .cl-trigger:hover { color: var(--text); }
+    .cl-trigger svg { flex-shrink: 0; }
+
+    #cl-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    #cl-overlay.open { opacity: 1; pointer-events: all; }
+    #cl-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 420px; max-width: 95vw; background: var(--surface); border-left: 1px solid var(--border); z-index: 301; transform: translateX(100%); transition: transform .25s cubic-bezier(.4,0,.2,1); overflow-y: auto; display: flex; flex-direction: column; }
+    #cl-drawer.open { transform: translateX(0); }
+    .cl-header { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+    .cl-header h2 { font-size: 16px; }
+    .cl-body { padding: 20px; flex: 1; }
+    .cl-entry { margin-bottom: 28px; }
+    .cl-version { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .cl-ver-num { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent); }
+    .cl-date { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+    .cl-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .cl-tag-feat { background: rgba(79,124,255,.15); color: #7aa0ff; }
+    .cl-tag-fix  { background: rgba(45,202,115,.15); color: var(--green); }
+    .cl-tag-chore{ background: rgba(123,128,153,.15); color: var(--muted); }
+    .cl-items { list-style: none; }
+    .cl-items li { padding: 4px 0; font-size: 13px; color: var(--text); display: flex; gap: 8px; }
+    .cl-items li::before { content: "›"; color: var(--muted); flex-shrink: 0; }
+    .cl-divider { border: none; border-top: 1px solid var(--border); margin: 0 0 28px; }
+
+    /* Toast */
+    #toast { position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:11px 16px;font-size:13px;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:999; }
+    #toast.show { opacity:1;transform:translateY(0); }
+
+    ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-track{background:var(--surface)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    @media(max-width:768px){.outlet-head,.outlet-row{grid-template-columns:2fr 60px 60px 140px 40px} .outlet-head span:nth-child(2),.outlet-row>div:nth-child(2){display:none}}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Drive Monitor
+  </div>
+  <div class="header-right">
+    <button class="cl-trigger" onclick="openChangelog()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Changelog
+    </button>
+    <div id="dot" class="dot"></div>
+    <span id="ts" class="ts">—</span>
+    {% if authenticated %}<a href="/auth/logout" class="btn btn-ghost btn-sm">ออกจากระบบ</a>{% endif %}
+  </div>
+</header>
+
+<main>
+
+  <!-- Auth -->
+  <div id="auth-banner" {% if authenticated %}style="display:none"{% endif %}>
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" style="margin-bottom:14px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+    <h2>เชื่อมต่อ Google Drive</h2>
+    <p>อนุญาตสิทธิ์เพื่อดูไฟล์ใน Shared Drive<br>(Read-only — ไม่มีการแก้ไขข้อมูล)</p>
+    <a href="/auth/login" class="btn btn-primary">เข้าสู่ระบบด้วย Google</a>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" {% if not authenticated %}style="display:none"{% endif %}>
+
+    <!-- Drive tabs -->
+    <div class="drive-tabs">
+      <button class="drive-tab active" data-drive="">ทั้งหมด</button>
+      <button class="drive-tab" data-drive="Video 2026">Video 2026</button>
+      <button class="drive-tab" data-drive="Production Team">Production Team</button>
+      <button class="drive-tab" data-drive="Final Video">Final Video</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-row">
+      <div class="scard"><div class="lbl">Outlet</div><div class="val" id="s-outlets">—</div></div>
+      <div class="scard"><div class="lbl">ไฟล์ทั้งหมด</div><div class="val" id="s-total">—</div></div>
+      <div class="scard"><div class="lbl">Footage</div><div class="val" id="s-footage" style="color:var(--accent)">—</div></div>
+      <div class="scard"><div class="lbl">Audio</div><div class="val" id="s-audio" style="color:var(--purple)">—</div></div>
+      <div class="scard"><div class="lbl">ใหม่ใน 1 ชม.</div><div class="val" id="s-new" style="color:var(--green)">—</div></div>
+    </div>
+
+    <!-- Top bar -->
+    <div class="top-bar">
+      <input type="text" id="search" placeholder="ค้นหา outlet หรือไฟล์…" />
+      <select id="filter-hours">
+        <option value="24">24 ชั่วโมง</option>
+        <option value="48">48 ชั่วโมง</option>
+        <option value="72" selected>72 ชั่วโมง</option>
+        <option value="168">7 วัน</option>
+      </select>
+      <div class="spacer"></div>
+      <div class="countdown-wrap">
+        <span style="font-size:12px;color:var(--muted)">รีเฟรชใน</span>
+        <span class="cdown" id="cdown">—</span>
+        <button class="icon-btn" id="refresh-btn" title="รีเฟรชทันที">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="icon-btn" id="clear-cache-btn" title="ล้าง folder cache">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Outlet table -->
+    <div class="outlet-table">
+      <div class="outlet-head">
+        <span>Outlet / โฟลเดอร์</span>
+        <span>Drive</span>
+        <span>ใหม่</span>
+        <span>Footage</span>
+        <span>Audio</span>
+        <span>อัพเดทล่าสุด</span>
+        <span></span>
+      </div>
+      <div id="outlet-body">
+        <div class="empty"><div class="spinner"></div><br>กำลังโหลด…</div>
+      </div>
+    </div>
+    <div id="row-info" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:right;"></div>
+
+  </div>
+</main>
+
+<!-- Changelog overlay -->
+<div id="cl-overlay" onclick="closeChangelog()"></div>
+<div id="cl-drawer">
+  <div class="cl-header">
+    <h2>Changelog</h2>
+    <button class="icon-btn" onclick="closeChangelog()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="cl-body" id="cl-body">
+    <div class="empty"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const REFRESH = 120;
+const COLOR_POOL = ['#4f7cff','#a855f7','#ec4899','#22d3ee','#f5a623','#2dca73','#ff5a5f','#fbbf24','#34d399','#60a5fa'];
+let allFiles = [], outletColors = {}, activeDrive = '';
+let countdown = REFRESH, cdInterval = null;
+let knownIds = new Set(), expandedOutlets = new Set();
+
+// ─── Helpers ───────────────────────────────────────────────────────────
+function colorFor(o) {
+  if (!outletColors[o]) outletColors[o] = COLOR_POOL[Object.keys(outletColors).length % COLOR_POOL.length];
+  return outletColors[o];
+}
+function fmt(b) {
+  if (!b) return '—';
+  if (b < 1048576) return (b/1024).toFixed(0)+' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(1)+' MB';
+  return (b/1073741824).toFixed(2)+' GB';
+}
+function relTime(iso) {
+  const s = (Date.now() - new Date(iso))/1000;
+  if (s < 60) return 'เมื่อกี้';
+  if (s < 3600) return Math.floor(s/60)+' นาทีที่แล้ว';
+  if (s < 86400) return Math.floor(s/3600)+' ชม.ที่แล้ว';
+  return Math.floor(s/86400)+' วันที่แล้ว';
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})+' '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+}
+function isNew(iso,h=1){ return iso && (Date.now()-new Date(iso)) < h*3600000; }
+function typeBadge(t) {
+  const m = {Footage:'footage',Audio:'audio',Graphic:'graphic',Script:'script',Final:'final'};
+  return `<span class="badge badge-${m[t]||'other'}">${t}</span>`;
+}
+function showToast(msg,ms=3000){
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),ms);
+}
+// Effective time = whichever is more recent (catches moved files via modifiedTime)
+function effectiveTime(f){ return f.modifiedTime > f.createdTime ? f.modifiedTime : f.createdTime; }
+
+// ─── Fetch ─────────────────────────────────────────────────────────────
+async function fetchFiles() {
+  const dot = document.getElementById('dot');
+  const hours = document.getElementById('filter-hours').value;
+  dot.className='dot';
+  try {
+    const sourceParam = activeDrive ? `&source=${encodeURIComponent(activeDrive)}` : '';
+    const res = await fetch(`/api/files?hours=${hours}${sourceParam}`);
+    if (res.status===401){location.reload();return;}
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const incoming = data.files||[];
+    const newOnes = incoming.filter(f=>!knownIds.has(f.id));
+    newOnes.forEach(f=>knownIds.add(f.id));
+    if (newOnes.length && knownIds.size>newOnes.length) showToast(`✦ มีไฟล์ใหม่/ย้าย ${newOnes.length} ไฟล์`);
+    else incoming.forEach(f=>knownIds.add(f.id));
+
+    allFiles = incoming;
+    dot.className='dot live';
+    document.getElementById('ts').textContent='อัพเดท '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    render();
+    resetCountdown();
+  } catch(e) {
+    document.getElementById('dot').className='dot err';
+    document.getElementById('outlet-body').innerHTML=`<div class="empty">⚠ ${e.message}</div>`;
+    resetCountdown();
+  }
+}
+
+// ─── Render ────────────────────────────────────────────────────────────
+function render() {
+  const search = document.getElementById('search').value.toLowerCase();
+
+  let files = allFiles;
+  if (search) files = files.filter(f =>
+    f.outlet.toLowerCase().includes(search)||
+    f.name.toLowerCase().includes(search)||
+    f.path.toLowerCase().includes(search)
+  );
+
+  // Group by outlet
+  const outletMap = {};
+  for (const f of files) {
+    if (!outletMap[f.outlet]) outletMap[f.outlet]={name:f.outlet,drive:f.drive,files:[],latest:''};
+    outletMap[f.outlet].files.push(f);
+    const t = effectiveTime(f);
+    if (t > outletMap[f.outlet].latest) { outletMap[f.outlet].latest=t; outletMap[f.outlet].drive=f.drive; }
+  }
+
+  const outlets = Object.values(outletMap).sort((a,b)=>b.latest.localeCompare(a.latest));
+
+  document.getElementById('s-outlets').textContent = outlets.length;
+  document.getElementById('s-total').textContent = files.length;
+  document.getElementById('s-footage').textContent = files.filter(f=>f.type==='Footage').length;
+  document.getElementById('s-audio').textContent = files.filter(f=>f.type==='Audio').length;
+  document.getElementById('s-new').textContent = files.filter(f=>isNew(effectiveTime(f),1)).length;
+
+  if (!outlets.length) {
+    document.getElementById('outlet-body').innerHTML=`<div class="empty">ไม่พบข้อมูลในช่วงเวลาที่เลือก</div>`;
+    document.getElementById('row-info').textContent='';
+    return;
+  }
+
+  const html = outlets.map(o => {
+    const newCount = o.files.filter(f=>isNew(effectiveTime(f),1)).length;
+    const footage = o.files.filter(f=>f.type==='Footage').length;
+    const audio   = o.files.filter(f=>f.type==='Audio').length;
+    const color   = colorFor(o.name);
+    const isExp   = expandedOutlets.has(o.name);
+    const newBadge = newCount>0 ? `<span class="badge-new-count">+${newCount}</span>` : '';
+    const isFinal = o.drive==='Final Video';
+
+    const sortedFiles = [...o.files].sort((a,b)=>effectiveTime(b).localeCompare(effectiveTime(a)));
+    const fileRows = sortedFiles.map(f => {
+      const nb = isNew(effectiveTime(f),1) ? '<span class="badge-new-inline">NEW</span>':
+                 (f.modifiedTime>f.createdTime ? '<span class="badge-new-inline" style="background:var(--amber)">MOVED</span>':'');
+      return `<tr>
+        <td><div class="fname" title="${f.name}">${f.name}${nb}</div>
+            <div class="fpath" title="${f.path}">${f.path||'—'}</div></td>
+        <td>${typeBadge(f.type)}</td>
+        <td><div class="time-main">${fmtDate(effectiveTime(f))}</div><div class="time-rel">${relTime(effectiveTime(f))}</div></td>
+        <td><span class="sz">${fmt(f.size)}</span></td>
+        <td>${f.link?`<a href="${f.link}" target="_blank" rel="noopener" class="icon-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`:'—'}</td>
+      </tr>`;
+    }).join('');
+
+    const driveLabel = isFinal
+      ? `<span style="font-size:12px;color:var(--orange);font-family:var(--mono)">${o.drive}</span>`
+      : `<span style="font-size:12px;color:var(--muted);font-family:var(--mono)">${o.drive}</span>`;
+
+    return `<div class="outlet-row-wrap" data-outlet="${encodeURIComponent(o.name)}">
+      <div class="outlet-row${isExp?' expanded':''}" onclick="toggleOutlet('${encodeURIComponent(o.name)}')">
+        <div><div class="outlet-name">
+          <span class="odot" style="background:${color}"></span>
+          <span>${o.name}</span>${newBadge}
+        </div></div>
+        <div>${driveLabel}</div>
+        <div><span class="num${newCount?'':' zero'}">${newCount||'—'}</span></div>
+        <div><span class="num footage">${footage||'—'}</span></div>
+        <div><span class="num audio">${audio||'—'}</span></div>
+        <div><div class="time-main">${fmtDate(o.latest)}</div><div class="time-rel">${relTime(o.latest)}</div></div>
+        <div style="text-align:center"><svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="file-drawer${isExp?' open':''}">
+        <table>
+          <thead><tr><th>ชื่อไฟล์</th><th>ประเภท</th><th>อัพเดต</th><th>ขนาด</th><th>ลิงก์</th></tr></thead>
+          <tbody>${fileRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('outlet-body').innerHTML = html;
+  document.getElementById('row-info').textContent = `${outlets.length} outlet · ${files.length} ไฟล์`;
+}
+
+function toggleOutlet(enc) {
+  const name = decodeURIComponent(enc);
+  if (expandedOutlets.has(name)) expandedOutlets.delete(name);
+  else expandedOutlets.add(name);
+  render();
+}
+
+// ─── Drive tabs ────────────────────────────────────────────────────────
+document.querySelectorAll('.drive-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.drive-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    activeDrive = tab.dataset.drive;
+    knownIds.clear();
+    document.getElementById('outlet-body').innerHTML='<div class="empty"><div class="spinner"></div><br>กำลังโหลด…</div>';
+    fetchFiles();
+  });
+});
+
+// ─── Controls ──────────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', ()=>render());
+document.getElementById('filter-hours').addEventListener('change', ()=>{knownIds.clear();fetchFiles();});
+document.getElementById('refresh-btn').addEventListener('click', ()=>{clearInterval(cdInterval);fetchFiles();});
+document.getElementById('clear-cache-btn').addEventListener('click', async()=>{
+  await fetch('/api/refresh-cache',{method:'POST'});
+  showToast('ล้าง cache แล้ว — กำลังโหลดใหม่…');
+  knownIds.clear(); fetchFiles();
+});
+
+// ─── Countdown ─────────────────────────────────────────────────────────
+function resetCountdown() {
+  clearInterval(cdInterval);
+  countdown = REFRESH;
+  document.getElementById('cdown').textContent = countdown+'s';
+  cdInterval = setInterval(()=>{
+    countdown--;
+    document.getElementById('cdown').textContent = countdown+'s';
+    if (countdown<=0){clearInterval(cdInterval);fetchFiles();}
+  },1000);
+}
+
+// ─── Changelog ─────────────────────────────────────────────────────────
+async function openChangelog() {
+  document.getElementById('cl-overlay').classList.add('open');
+  document.getElementById('cl-drawer').classList.add('open');
+
+  const res = await fetch('/api/changelog');
+  const entries = await res.json();
+  const tagClass = {feat:'cl-tag-feat', fix:'cl-tag-fix', chore:'cl-tag-chore'};
+
+  document.getElementById('cl-body').innerHTML = entries.map((e,i)=>`
+    ${i>0?'<hr class="cl-divider">':''}
+    <div class="cl-entry">
+      <div class="cl-version">
+        <span class="cl-ver-num">v${e.version}</span>
+        <span class="cl-date">${e.date}</span>
+        ${e.tag?`<span class="cl-tag ${tagClass[e.tag]||''}">${e.tag}</span>`:''}
+      </div>
+      <ul class="cl-items">
+        ${e.changes.map(c=>`<li>${c}</li>`).join('')}
+      </ul>
+    </div>
+  `).join('') || '<div class="empty">ยังไม่มี changelog</div>';
+}
+
+function closeChangelog() {
+  document.getElementById('cl-overlay').classList.remove('open');
+  document.getElementById('cl-drawer').classList.remove('open');
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeChangelog(); });
+
+// ─── Init ──────────────────────────────────────────────────────────────
+if (document.getElementById('dashboard').style.display!=='none') fetchFiles();
+</script>
+</body>
+</html>

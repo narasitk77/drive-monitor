@@ -1,0 +1,46 @@
+[
+  {
+    "version": "1.3.0",
+    "date": "2026-04-23",
+    "tag": "feat",
+    "changes": [
+      "เพิ่ม Final Video folder tab — ดูไฟล์จาก folder พิเศษแยกต่างหาก",
+      "แก้ไขการตรวจจับไฟล์ที่ย้าย (moved) — ใช้ทั้ง createdTime และ modifiedTime",
+      "badge MOVED (สีเหลือง) แสดงเมื่อไฟล์ถูกย้ายเข้ามาล่าสุด",
+      "เพิ่ม Changelog drawer บนเว็บ"
+    ]
+  },
+  {
+    "version": "1.2.0",
+    "date": "2026-04-23",
+    "tag": "feat",
+    "changes": [
+      "เปลี่ยนเป็น Outlet-first view — แสดงโฟลเดอร์ก่อน กดขยายดูไฟล์",
+      "Drive toggle tabs: ทั้งหมด / Video 2026 / Production Team",
+      "เรียง outlet ตามกิจกรรมล่าสุด",
+      "แสดงจำนวน Footage และ Audio แยกในแต่ละ outlet"
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-04-23",
+    "tag": "fix",
+    "changes": [
+      "แก้ไข InvalidGrantError: Missing code verifier (PKCE OAuth flow)",
+      "เก็บ code_verifier ใน session และส่งคืนตอน callback"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-04-23",
+    "tag": "feat",
+    "changes": [
+      "เปิดตัว Drive Monitor — ติดตามไฟล์ใน Video 2026 และ Production Team",
+      "Google OAuth 2.0 authentication (Read-only)",
+      "ตารางไฟล์พร้อม filter outlet, ประเภท, ช่วงเวลา",
+      "Auto-refresh ทุก 2 นาที พร้อม countdown",
+      "Folder cache 10 นาที เพื่อลด API calls",
+      "badge NEW สำหรับไฟล์ที่อัพโหลดในชั่วโมงล่าสุด"
+    ]
+  }
+]
