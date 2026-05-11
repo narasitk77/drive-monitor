@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
+  <title>CineFlow — Production Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#f0f9ff',100:'#e0f2fe',200:'#bae6fd',300:'#7dd3fc',400:'#38bdf8',500:'#0ea5e9',600:'#0284c7',700:'#0369a1',800:'#075985',900:'#0c4a6e' },
+            dark: { 800:'#1e2330',900:'#141824',950:'#0d1117' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-dark-950 text-gray-100 min-h-screen font-sans">
+
+  <!-- ============= TOP NAV ============= -->
+  <nav class="bg-dark-900 border-b border-gray-800 fixed top-0 w-full z-50">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
+      <div class="flex items-center gap-3">
+        <button onclick="openMobileDrawer()" class="hamburger-btn">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow-lg">CF</div>
+        <span class="font-bold text-lg tracking-tight">CineFlow</span>
+        <span class="hidden md:inline text-xs text-gray-600 font-mono ml-1">v1.1</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Changelog button -->
+        <button onclick="showChangelogModal()" class="relative text-gray-400 hover:text-white p-2 rounded-lg hover:bg-dark-800 transition-colors" title="What's New">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span data-changelog-badge class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" style="display:none"></span>
+        </button>
+        <!-- Settings button -->
+        <button onclick="showSettingsModal()" class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-dark-800 transition-colors hidden sm:block" title="Settings">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+        <button onclick="openModal('newProjectModal')" class="btn btn-primary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span class="hidden sm:inline">New Project</span>
+        </button>
+        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold ml-1">NK</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============= MOBILE DRAWER ============= -->
+  <div id="mobileDrawerOverlay" class="mobile-drawer-overlay" onclick="closeMobileDrawer()"></div>
+  <aside id="mobileDrawer" class="mobile-drawer">
+    <div class="p-5 border-b border-gray-800 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center font-bold text-white">CF</div>
+        <div>
+          <div class="font-bold">CineFlow</div>
+          <div class="text-xs text-gray-500">v1.1</div>
+        </div>
+      </div>
+      <button onclick="closeMobileDrawer()" class="text-gray-400 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="py-2 flex-1">
+      <a href="index.html" class="mobile-drawer-item active">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Projects
+      </a>
+      <button onclick="closeMobileDrawer(); showChangelogModal();" class="mobile-drawer-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        What's New
+        <span data-changelog-badge class="ml-auto w-2 h-2 bg-red-500 rounded-full" style="display:none"></span>
+      </button>
+      <button onclick="closeMobileDrawer(); showSettingsModal();" class="mobile-drawer-item">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+        Settings
+      </button>
+    </div>
+    <div class="p-4 border-t border-gray-800 text-xs text-gray-600">
+      <p>CineFlow v1.1.0</p>
+      <p class="mt-1">Production Management Platform</p>
+    </div>
+  </aside>
+
+  <!-- ============= MAIN ============= -->
+  <main class="pt-14">
+    <!-- HERO / STATS -->
+    <div class="bg-dark-900 border-b border-gray-800">
+      <div class="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+        <h1 class="text-xl sm:text-2xl font-bold mb-1">My Productions</h1>
+        <p class="text-gray-400 text-sm">Manage your film, TV, and video projects</p>
+        <div class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-dark-800 rounded-xl p-4 border border-gray-700">
+            <div class="text-2xl font-bold text-brand-400" id="statProjects">0</div>
+            <div class="text-xs text-gray-400 mt-1">Total Projects</div>
+          </div>
+          <div class="bg-dark-800 rounded-xl p-4 border border-gray-700">
+            <div class="text-2xl font-bold text-green-400" id="statActive">0</div>
+            <div class="text-xs text-gray-400 mt-1">Active</div>
+          </div>
+          <div class="bg-dark-800 rounded-xl p-4 border border-gray-700">
+            <div class="text-2xl font-bold text-yellow-400" id="statDraft">0</div>
+            <div class="text-xs text-gray-400 mt-1">In Development</div>
+          </div>
+          <div class="bg-dark-800 rounded-xl p-4 border border-gray-700">
+            <div class="text-2xl font-bold text-purple-400" id="statCompleted">0</div>
+            <div class="text-xs text-gray-400 mt-1">Completed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center gap-1 overflow-x-auto -mx-1 px-1">
+        <button onclick="filterProjects('all')" id="filter-all" class="filter-btn active">All</button>
+        <button onclick="filterProjects('active')" id="filter-active" class="filter-btn">Active</button>
+        <button onclick="filterProjects('development')" id="filter-development" class="filter-btn">Development</button>
+        <button onclick="filterProjects('completed')" id="filter-completed" class="filter-btn">Completed</button>
+      </div>
+      <div class="relative">
+        <input type="text" id="searchInput" placeholder="Search projects..." oninput="renderProjects()" class="bg-dark-800 border border-gray-700 rounded-lg px-3 py-2 text-sm w-full sm:w-56 focus:outline-none focus:border-brand-500 pl-9">
+        <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+      </div>
+    </div>
+
+    <!-- PROJECTS GRID -->
+    <div class="max-w-7xl mx-auto px-4 pb-12">
+      <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <div id="emptyState" class="hidden empty-state">
+        <div class="empty-state-icon">🎬</div>
+        <h3>No projects yet</h3>
+        <p>Create your first production project</p>
+        <button onclick="openModal('newProjectModal')" class="btn btn-primary">Create Project</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============= MOBILE BOTTOM TAB BAR ============= -->
+  <nav class="mobile-tab-bar">
+    <button class="mobile-tab-btn active">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+      Projects
+    </button>
+    <button class="mobile-tab-btn" onclick="openModal('newProjectModal')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      New
+    </button>
+    <button class="mobile-tab-btn" onclick="showChangelogModal()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+      What's New
+    </button>
+    <button class="mobile-tab-btn" onclick="showSettingsModal()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </button>
+  </nav>
+
+  <!-- ============= NEW PROJECT MODAL ============= -->
+  <div id="newProjectModal" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7)">
+    <div class="bg-dark-800 rounded-2xl w-full max-w-lg border border-gray-700 shadow-2xl">
+      <div class="p-5 border-b border-gray-700 flex items-center justify-between">
+        <h2 class="text-lg font-bold">New Project</h2>
+        <button onclick="closeModal('newProjectModal')" class="text-gray-400 hover:text-white p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-1 block">Project Title <span class="text-red-400">*</span></label>
+          <input type="text" id="newTitle" placeholder="e.g. The Last Chapter" class="input-field">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm text-gray-400 mb-1 block">Type</label>
+            <select id="newType" class="input-field">
+              <option>Feature Film</option><option>Short Film</option><option>TV Series</option><option>Documentary</option><option>Commercial</option><option>Music Video</option><option>Web Series</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-400 mb-1 block">Status</label>
+            <select id="newStatus" class="input-field">
+              <option value="development">Development</option>
+              <option value="active">Active / Pre-Production</option>
+              <option value="production">Production</option>
+              <option value="post">Post-Production</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-1 block">Director</label>
+          <input type="text" id="newDirector" placeholder="Director name" class="input-field">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm text-gray-400 mb-1 block">Start Date</label>
+            <input type="date" id="newStart" class="input-field">
+          </div>
+          <div>
+            <label class="text-sm text-gray-400 mb-1 block">End Date</label>
+            <input type="date" id="newEnd" class="input-field">
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Color Theme</label>
+          <div class="flex gap-2 flex-wrap">
+            <div onclick="selectColor('#0ea5e9')" class="color-swatch w-8 h-8 rounded-full" style="background:#0ea5e9" data-color="#0ea5e9"></div>
+            <div onclick="selectColor('#8b5cf6')" class="color-swatch w-8 h-8 rounded-full" style="background:#8b5cf6" data-color="#8b5cf6"></div>
+            <div onclick="selectColor('#10b981')" class="color-swatch w-8 h-8 rounded-full" style="background:#10b981" data-color="#10b981"></div>
+            <div onclick="selectColor('#f59e0b')" class="color-swatch w-8 h-8 rounded-full" style="background:#f59e0b" data-color="#f59e0b"></div>
+            <div onclick="selectColor('#ef4444')" class="color-swatch w-8 h-8 rounded-full" style="background:#ef4444" data-color="#ef4444"></div>
+            <div onclick="selectColor('#ec4899')" class="color-swatch w-8 h-8 rounded-full" style="background:#ec4899" data-color="#ec4899"></div>
+          </div>
+        </div>
+      </div>
+      <div class="p-5 border-t border-gray-700 flex gap-3 justify-end">
+        <button onclick="closeModal('newProjectModal')" class="btn btn-ghost">Cancel</button>
+        <button onclick="createProject()" class="btn btn-primary">Create Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= SCRIPTS ============= -->
+  <script src="js/ui-utils.js"></script>
+  <script src="js/google-integration.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
