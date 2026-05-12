@@ -5,7 +5,21 @@
 > and **13 production modules** matching StudioBinder feature parity.
 > Built as a pure static HTML/CSS/JavaScript SPA.
 
-**Current version:** `v1.2.0` (2026-05-09)
+**Current version:** `v1.3.0` (2026-05-12)
+
+---
+
+## 🔐 How users get in
+
+1. Open the app → **Login screen** with "Sign in with Google" button
+2. Click sign in → Google consent (Drive · Calendar · Gmail · Docs)
+3. Done — full app unlocked, profile picture shows in top-right
+4. Click avatar → menu with Settings / What's New / Sign out
+
+**Or** click "Continue without signing in" for local-only mode (GWS features will prompt for sign-in when invoked).
+
+> Default OAuth Client ID is pre-configured for `@thestandard.co` org.
+> Other organizations can override via Settings → OAuth Configuration.
 
 ---
 
@@ -128,10 +142,11 @@ studiobinder-clone/
 ├── js/
 │   ├── ui-utils.js             # Shared utilities (toast, modal, escape, formatDate, changelog data)
 │   ├── google-integration.js   # Google Workspace OAuth + Drive/Calendar/Gmail/Docs/Sheets
+│   ├── auth-gate.js            # NEW v1.3 — Login overlay + user menu + auth gate
 │   ├── settings.js             # Settings modal (GWS config, data export/import)
 │   ├── app.js                  # Dashboard logic — CRUD projects, filters
 │   ├── project.js              # 9 core modules — script, breakdown, shots, etc.
-│   └── modules-v12.js          # NEW v1.2 — Stripboard, Storyboard, Media Library, Reports
+│   └── modules-v12.js          # v1.2 — Stripboard, Storyboard, Media Library, Reports
 │
 ├── assets/                 # Reserved for future static assets
 │

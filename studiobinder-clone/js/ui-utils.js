@@ -114,7 +114,7 @@ window.avatarColor = avatarColor;
 window.initials = initials;
 
 // ===== SEEN/UNSEEN BADGES (for changelog "NEW" badge) =====
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 function getLastSeenVersion() { return localStorage.getItem('cf_lastSeenVersion') || '0.0.0'; }
 function markVersionSeen() { localStorage.setItem('cf_lastSeenVersion', APP_VERSION); }
 function hasUnseenChangelog() { return getLastSeenVersion() !== APP_VERSION; }
@@ -125,6 +125,44 @@ window.hasUnseenChangelog = hasUnseenChangelog;
 
 // ===== CHANGELOG DATA =====
 const CHANGELOG = [
+  {
+    version: '1.3.0',
+    date: '2026-05-12',
+    title: 'Login-First Flow — Sign in with Google',
+    sections: [
+      {
+        title: '✨ New',
+        items: [
+          'Brand new full-screen Login overlay — appears first on every visit',
+          '"Sign in with Google" button requests Drive, Calendar, Gmail, Docs scopes in one go',
+          'User profile (name, email, avatar) appears in top-right after sign-in',
+          'Click avatar → user menu with Settings · What\'s New · Sign out',
+          'Default OAuth Client ID pre-configured for the @thestandard.co org',
+          'Session restore — token kept in sessionStorage so refreshing the page does not require re-auth',
+          '"Continue without signing in" option for local-only/offline mode'
+        ]
+      },
+      {
+        title: '🎨 UX',
+        items: [
+          'Animated gradient background on login screen',
+          'Glassmorphism login card with feature preview',
+          'Smooth fade-in/fade-out transitions',
+          'Loading spinner on sign-in button during OAuth flow',
+          'User menu shows real Google profile picture'
+        ]
+      },
+      {
+        title: '🔧 Technical',
+        items: [
+          'New file js/auth-gate.js — runs before app to enforce login',
+          'Added DEFAULT_CLIENT_ID constant in google-integration.js',
+          'Added gwsUserProfile + userinfo API integration',
+          'Added restoreGwsSession() — reuses sessionStorage token across page navigations'
+        ]
+      }
+    ]
+  },
   {
     version: '1.2.0',
     date: '2026-05-09',

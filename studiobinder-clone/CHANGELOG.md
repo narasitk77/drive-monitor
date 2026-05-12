@@ -6,6 +6,100 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.0] — 2026-05-12
+
+### 🔐 Login-First Flow — Sign in with Google
+
+Major UX shift: the app now opens with a **dedicated Login screen** before
+anything else. Sign in once → all Google Workspace features unlocked
+immediately. No more Settings detour.
+
+---
+
+### ✨ Added
+
+#### Login Screen
+- **Full-screen Login overlay** appears on every fresh visit
+- Beautiful glassmorphism card with animated gradient backdrop
+- Feature preview chips: Script · Breakdown · Shot List · Call Sheets · Stripboard · Storyboard · Drive · Calendar · Gmail · Docs
+- **"Sign in with Google"** button — requests all 4 GWS scopes (Drive + Calendar + Gmail + Docs) + `openid email profile` in **one consent screen**
+- **"Continue without signing in"** option for local-only mode (skipped flag stored in sessionStorage)
+- Loading spinner on sign-in button during OAuth round-trip
+- Version footer (`v1.3.0`)
+
+#### User Identity
+- Real Google profile (name, email, picture) fetched via `userinfo` endpoint
+- **Avatar in top-right** shows user's actual profile picture
+- Click avatar → **user menu** with: profile card, Settings, What's New, Sign out
+- When not signed in: avatar shows "NK" placeholder with sign-in prompt
+- "Signed in as {email}" toast on successful auth
+
+#### Session Restore
+- Token cached in `sessionStorage` (cleared on tab close per browser policy)
+- Page refreshes within the same session **don't require re-auth**
+- Token expiry checked with 60s buffer before considering valid
+- `restoreGwsSession()` runs on every page load before showing login overlay
+
+#### Default OAuth Client ID
+- Pre-configured `DEFAULT_CLIENT_ID` in `js/google-integration.js` for `@thestandard.co` org
+- Users can still override with their own in Settings → OAuth Configuration
+- `getGwsConfig()` returns the default if nothing is saved
+
+---
+
+### 🎨 UX / Visual
+
+- Animated background gradient (sky → violet) with two soft glow orbs
+- Glassmorphism login card (backdrop-blur + transparent border)
+- Smooth fade-in/fade-out (`@keyframes authFadeIn / authFadeOut`)
+- Mobile-optimized login layout (`@media max-width: 480px`)
+- User menu styles match the dark theme with hover states
+
+---
+
+### 🔧 Technical
+
+#### New file: `js/auth-gate.js` (~330 lines)
+- Self-injecting overlay (no HTML changes needed in `index.html` / `project.html`)
+- Self-contained styles (no `styles.css` edits required)
+- `runAuthGate()` runs on `DOMContentLoaded` — decides whether to show overlay
+- Three states: **signed in** (hide) / **skipped** (hide for session) / **fresh** (show)
+- Hooks `onGwsConnected` / `onGwsDisconnected` to update avatar reactively
+
+#### `js/google-integration.js`
+- New `DEFAULT_CLIENT_ID` constant
+- New `DEFAULT_LOGIN_SCOPES` array (drive, calendar, gmail, docs, profile)
+- New `restoreGwsSession()` — re-hydrate from sessionStorage
+- New `gwsUserProfile()` getter
+- `gwsConnect()` now fetches user profile from `oauth2/v3/userinfo`
+- `gwsConnect()` now persists token + profile to sessionStorage
+- `gwsDisconnect()` clears sessionStorage and profile
+- Added `openid email profile` to scopes map
+
+---
+
+### 🔒 Security & Privacy
+
+- Access tokens still **memory + sessionStorage only** (never localStorage, never sent to any 3rd-party server)
+- sessionStorage is auto-cleared when the tab is closed (per browser policy)
+- Sign-out revokes the token via `google.accounts.oauth2.revoke()` and clears all auth state
+- "Continue without signing in" leaves no Google footprint
+- OAuth Client ID is still public (not a secret)
+
+---
+
+### 📁 Updated Files
+
+```
+js/auth-gate.js          # NEW — 330 lines, login overlay + user menu + gate logic
+js/google-integration.js # +50 lines — DEFAULT_CLIENT_ID, profile, sessionStorage
+js/ui-utils.js           # APP_VERSION → 1.3.0 + new changelog entry
+index.html               # +1 line — auth-gate.js script tag + [data-user-badge]
+project.html             # +1 line — auth-gate.js script tag
+```
+
+---
+
 ## [1.2.0] — 2026-05-09
 
 ### 🎬 Full StudioBinder Parity — 4 New Modules

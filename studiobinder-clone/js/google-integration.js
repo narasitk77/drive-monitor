@@ -30,22 +30,35 @@
 
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 
+// Default OAuth Client ID — pre-configured for the org so users can sign in
+// directly without configuring Cloud Console themselves.
+// Users can still override with their own in Settings → OAuth Configuration.
+const DEFAULT_CLIENT_ID = '222148598316-vdha00phfkpu0r4n1uk50nem2tbsvo32.apps.googleusercontent.com';
+
 const GWS_SCOPES = {
   drive:    'https://www.googleapis.com/auth/drive.file',
   calendar: 'https://www.googleapis.com/auth/calendar.events',
   gmail:    'https://www.googleapis.com/auth/gmail.send',
   docs:     'https://www.googleapis.com/auth/documents',
-  contacts: 'https://www.googleapis.com/auth/contacts.readonly'
+  contacts: 'https://www.googleapis.com/auth/contacts.readonly',
+  profile:  'openid email profile'
 };
+
+// "All-in" scope bundle requested at login time so user grants everything once.
+const DEFAULT_LOGIN_SCOPES = ['drive', 'calendar', 'gmail', 'docs', 'profile'];
 
 let gwsTokenClient = null;
 let gwsAccessToken = null;
 let gwsTokenExpiry = 0;
+let gwsUserProfile = null;     // { email, name, picture }
 let gisLoaded = false;
 
 // ---- CONFIG ----
 function getGwsConfig() {
-  return JSON.parse(localStorage.getItem('cf_gws_config') || '{}');
+  const c = JSON.parse(localStorage.getItem('cf_gws_config') || '{}');
+  // Always fall back to the default Client ID if user hasn't set their own
+  if (!c.clientId) c.clientId = DEFAULT_CLIENT_ID;
+  return c;
 }
 function saveGwsConfig(c) {
   localStorage.setItem('cf_gws_config', JSON.stringify(c));
@@ -73,7 +86,7 @@ function loadGisScript() {
 }
 
 // ---- AUTHENTICATION ----
-async function gwsConnect(scopesNeeded = ['drive', 'calendar', 'gmail', 'docs']) {
+async function gwsConnect(scopesNeeded = DEFAULT_LOGIN_SCOPES, opts = {}) {
   const config = getGwsConfig();
   if (!config.clientId) {
     showToast('Please configure Google Workspace in Settings first', 'warning');
@@ -88,30 +101,64 @@ async function gwsConnect(scopesNeeded = ['drive', 'calendar', 'gmail', 'docs'])
     gwsTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: config.clientId,
       scope: scopeString,
-      callback: (response) => {
+      callback: async (response) => {
         if (response.error) {
-          showToast('Connection failed: ' + response.error, 'error');
+          showToast('Sign-in failed: ' + response.error, 'error');
           return reject(response);
         }
         gwsAccessToken = response.access_token;
         gwsTokenExpiry = Date.now() + (response.expires_in * 1000);
-        showToast('Connected to Google Workspace', 'success');
+        // Persist token for session continuity (still memory-only at runtime — this is a quick refresh hint)
+        try { sessionStorage.setItem('cf_gws_token', JSON.stringify({ token: gwsAccessToken, expiry: gwsTokenExpiry, scopes: scopesNeeded })); } catch(_) {}
+        // Fetch user profile
+        try {
+          const profile = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: 'Bearer ' + gwsAccessToken }
+          }).then(r => r.ok ? r.json() : null);
+          if (profile) {
+            gwsUserProfile = { email: profile.email, name: profile.name, picture: profile.picture };
+            sessionStorage.setItem('cf_gws_profile', JSON.stringify(gwsUserProfile));
+          }
+        } catch(_) {}
+        if (!opts.silent) showToast('Signed in as ' + (gwsUserProfile?.email || 'Google user'), 'success');
         // Update settings to remember connection state
         const c = getGwsConfig();
         c.lastConnected = Date.now();
         c.connectedScopes = scopesNeeded;
+        c.lastEmail = gwsUserProfile?.email || '';
         saveGwsConfig(c);
         if (typeof onGwsConnected === 'function') onGwsConnected();
         resolve(true);
       },
       error_callback: (err) => {
-        showToast('Connection error: ' + (err.message || 'Unknown'), 'error');
+        showToast('Sign-in error: ' + (err.message || 'Unknown'), 'error');
         reject(err);
       }
     });
-    gwsTokenClient.requestAccessToken({ prompt: 'consent' });
+    // Use prompt: '' to attempt silent re-auth first, fall back to consent
+    gwsTokenClient.requestAccessToken({ prompt: opts.prompt || 'consent' });
   });
 }
+
+// ---- RESTORE SESSION ----
+// Re-hydrate token from sessionStorage if it's still valid (cuts redundant prompts)
+function restoreGwsSession() {
+  try {
+    const raw = sessionStorage.getItem('cf_gws_token');
+    if (!raw) return false;
+    const t = JSON.parse(raw);
+    if (t.expiry && Date.now() < t.expiry - 60000) {
+      gwsAccessToken = t.token;
+      gwsTokenExpiry = t.expiry;
+      const profile = sessionStorage.getItem('cf_gws_profile');
+      if (profile) gwsUserProfile = JSON.parse(profile);
+      return true;
+    }
+  } catch(_) {}
+  return false;
+}
+window.restoreGwsSession = restoreGwsSession;
+window.gwsUserProfile = () => gwsUserProfile;
 
 function gwsDisconnect() {
   if (gwsAccessToken && window.google?.accounts?.oauth2) {
@@ -119,11 +166,17 @@ function gwsDisconnect() {
   }
   gwsAccessToken = null;
   gwsTokenExpiry = 0;
+  gwsUserProfile = null;
+  try {
+    sessionStorage.removeItem('cf_gws_token');
+    sessionStorage.removeItem('cf_gws_profile');
+  } catch(_) {}
   const c = getGwsConfig();
   delete c.lastConnected;
   delete c.connectedScopes;
+  delete c.lastEmail;
   saveGwsConfig(c);
-  showToast('Disconnected from Google Workspace', 'info');
+  showToast('Signed out', 'info');
   if (typeof onGwsDisconnected === 'function') onGwsDisconnected();
 }
 

@@ -47,7 +47,7 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           <span class="hidden sm:inline">New Project</span>
         </button>
-        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold ml-1">NK</div>
+        <button data-user-badge onclick="toggleUserMenu(event)" class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold ml-1 cursor-pointer hover:ring-2 hover:ring-brand-500/40 transition overflow-hidden border-0" title="Account">NK</button>
       </div>
     </div>
   </nav>
@@ -230,5 +230,6 @@
   <script src="js/google-integration.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/auth-gate.js"></script>
 </body>
 </html>
