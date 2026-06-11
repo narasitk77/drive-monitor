@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cost Sheet Generator</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; background: #f0f2f5; color: #212529; }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .topbar { background: #1a1a2e; color: #fff; padding: 13px 24px; display: flex; align-items: baseline; gap: 12px; }
+    .topbar h1 { font-size: 16px; font-weight: 700; letter-spacing: .3px; }
+    .topbar small { font-size: 11px; color: #9ba4b4; }
+    .wrap { max-width: 960px; margin: 20px auto; padding: 0 16px 40px; }
+
+    /* ── Cards ──────────────────────────────────────────────── */
+    .card { background: #fff; border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 14px; overflow: hidden; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #f1f3f5; border-bottom: 1px solid #dee2e6; font-weight: 700; font-size: 11px; color: #495057; text-transform: uppercase; letter-spacing: .6px; }
+    .card-body { padding: 14px 16px; }
+
+    /* ── Form ───────────────────────────────────────────────── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .fgroup { display: flex; flex-direction: column; gap: 4px; }
+    .fgroup.full { grid-column: 1/-1; }
+    label { font-size: 11px; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: .4px; }
+    input, select, textarea { border: 1px solid #ced4da; border-radius: 4px; padding: 7px 10px; font-size: 13px; width: 100%; font-family: inherit; background: #fff; transition: border .15s; }
+    input:focus, select:focus { outline: none; border-color: #3d7de0; box-shadow: 0 0 0 3px rgba(61,125,224,.12); }
+
+    /* ── Tier ───────────────────────────────────────────────── */
+    .tier-row { display: flex; gap: 8px; }
+    .tier-btn { flex: 1; padding: 10px 6px; border: 2px solid #dee2e6; border-radius: 5px; cursor: pointer; text-align: center; font-weight: 800; font-size: 20px; background: #fff; transition: all .15s; line-height: 1; user-select: none; }
+    .tier-btn span { display: block; font-size: 9px; font-weight: 500; color: #868e96; margin-top: 3px; line-height: 1.4; }
+    .tier-btn:hover { border-color: #adb5bd; transform: translateY(-1px); }
+    .sel-A { background:#1e0b36!important; border-color:#1e0b36!important; color:#fff!important; }
+    .sel-A span { color:#c9b5e8!important; }
+    .sel-B { background:#0d3b6e!important; border-color:#0d3b6e!important; color:#fff!important; }
+    .sel-B span { color:#9fc5ee!important; }
+    .sel-C { background:#1e3a1e!important; border-color:#1e3a1e!important; color:#fff!important; }
+    .sel-C span { color:#9fd49f!important; }
+
+    /* ── Tables ─────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #f1f3f5; padding: 6px 7px; text-align: left; font-weight: 700; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; font-size: 11px; }
+    td { padding: 4px 5px; border-bottom: 1px solid #f4f5f7; vertical-align: top; }
+    td input, td select { padding: 4px 6px; font-size: 12px; border-color: #e0e0e0; }
+    tr:hover td { background: #fafbff; }
+
+    /* ── Chips ──────────────────────────────────────────────── */
+    .chips { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+    .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; border: 1px solid; transition: all .1s; white-space: nowrap; }
+    .c-med { background:#e8f4fd; color:#0d6efd; border-color:#b8daff; }
+    .c-med:hover { background:#0d6efd; color:#fff; }
+    .c-p75 { background:#fff3cd; color:#856404; border-color:#ffc107; }
+    .c-p75:hover { background:#856404; color:#fff; }
+    .c-ref { background:#f0f0f0; color:#6c757d; border-color:#dee2e6; font-size:9px; cursor:default; }
+
+    /* ── Buttons ────────────────────────────────────────────── */
+    .btn { padding: 6px 14px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; transition: all .15s; }
+    .btn-xs { padding: 3px 9px; font-size: 11px; }
+    .btn-blue { background: #0d6efd; color: #fff; }
+    .btn-blue:hover { background: #0b5ed7; }
+    .btn-red { background: #dc3545; color: #fff; }
+    .btn-red:hover { background: #b02a37; }
+    .add-row { width: 100%; margin-top: 6px; padding: 6px; border: 1px dashed #0d6efd; border-radius: 4px; background: #f0f7ff; color: #0d6efd; font-size: 11px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .add-row:hover { background: #0d6efd; color: #fff; }
+
+    /* ── Generate button ────────────────────────────────────── */
+    .gen-section { background: #fff; border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-bottom: 14px; }
+    .gen-btn { width: 100%; padding: 13px; font-size: 15px; font-weight: 700; font-family: inherit; background: #1e3a1e; color: #fff; border: none; border-radius: 5px; cursor: pointer; transition: all .15s; letter-spacing: .3px; }
+    .gen-btn:hover { background: #2d5a2d; transform: translateY(-1px); box-shadow: 0 3px 12px rgba(30,58,30,.3); }
+    .gen-btn:active { transform: translateY(0); }
+
+    /* ── Alerts ─────────────────────────────────────────────── */
+    #alert { display: none; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
+    #alert.ok  { background: #d1e7dd; border: 1px solid #a3cfbb; color: #0a3622; }
+    #alert.err { background: #f8d7da; border: 1px solid #f1aeb5; color: #58151c; }
+
+    /* ── Loading ────────────────────────────────────────────── */
+    #loading { display: none; text-align: center; padding: 12px; color: #6c757d; font-size: 13px; }
+    .sp { border: 3px solid #dee2e6; border-top-color: #0d6efd; border-radius: 50%; width: 22px; height: 22px; animation: spin .7s linear infinite; margin: 0 auto 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Col widths ─────────────────────────────────────────── */
+    .no-col { width: 26px; color: #adb5bd; text-align: center; }
+    .del-col { width: 28px; }
+    .amt-col { width: 80px; }
+    .qty-col { width: 46px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📋 Cost Sheet Generator</h1>
+  <small>Rate อ้างอิงจาก data จริง 2025–2026 · Gross ก่อน WHT 3%</small>
+</div>
+
+<div class="wrap">
+
+  <!-- ─── Project Info ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">Project Info</div>
+    <div class="card-body">
+      <div class="grid2" style="margin-bottom:12px">
+        <div class="fgroup full">
+          <label>Project Title *</label>
+          <input id="title" type="text" placeholder="เช่น Bulgari x Orm Kornnaphat">
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="fgroup">
+          <label>Starting Date</label>
+          <input id="startDate" type="date">
+        </div>
+        <div class="fgroup">
+          <label>Head Project / AE</label>
+          <select id="ae">
+            <option value="">— เลือก AE —</option>
+            <option>คุณ ภัทรลดา พุ่มเจริญ</option>
+            <option>คุณ วิไลลักษณ์ โพธิ์ตระกูล</option>
+            <option>คุณ นครินทร์ วนกิจไพบูลย์</option>
+            <option>คุณ ศุภวษา ศรีหนองโคตร</option>
+            <option>คุณ ศิลา รัตนวลีวงศ์</option>
+            <option>คุณ ชนาธิป โรจน์สิรวรพัฒน์</option>
+            <option>คุณ นนทกร ธุวะชาวสวน</option>
+            <option>คุณ มัทนิน ภูมิ</option>
+            <option>คุณ สุรัตนา ทรรปณ์ทิพากร</option>
+            <option>คุณ มาสสุภา เอี่ยมมงคลศิลป์</option>
+            <option>คุณ สุกัญญา แก้วชิงดวง</option>
+            <option>คุณ ธัญญ์นรี นิธิพัชรโรจน์</option>
+            <option>คุณ ณัฐณิชา แก้วมหาดไทย</option>
+            <option>คุณ ภัทรธิดา สุวรรณประทีป</option>
+            <option>คุณ อภิสิทธิ์ หรรษาภิรมย์โชค</option>
+            <option>คุณ ชฎารัตน์ ธุมา</option>
+            <option>คุณ อาทิตยา อิสสรานุสรณ์</option>
+            <option>คุณ ภัทรสุดา บุญญศรี</option>
+            <option>คุณ กรรญารัตน์ สุทธิสน</option>
+            <option>คุณ รมิดา วงศานิตย์</option>
+            <option>คุณ ปวริศา ตั้งตุลานนท์</option>
+          </select>
+        </div>
+        <div class="fgroup">
+          <label>Project Manager</label>
+          <select id="pm">
+            <option value="">— เลือก PM —</option>
+            <option>คุณ ภัทรลดา พุ่มเจริญ</option>
+            <option>คุณ วิไลลักษณ์ โพธิ์ตระกูล</option>
+            <option>คุณ นครินทร์ วนกิจไพบูลย์</option>
+            <option>คุณ ศุภวษา ศรีหนองโคตร</option>
+            <option>คุณ ศิลา รัตนวลีวงศ์</option>
+            <option>คุณ ชนาธิป โรจน์สิรวรพัฒน์</option>
+            <option>คุณ นนทกร ธุวะชาวสวน</option>
+            <option>คุณ มัทนิน ภูมิ</option>
+            <option>คุณ สุรัตนา ทรรปณ์ทิพากร</option>
+            <option>คุณ มาสสุภา เอี่ยมมงคลศิลป์</option>
+            <option>คุณ สุกัญญา แก้วชิงดวง</option>
+            <option>คุณ ธัญญ์นรี นิธิพัชรโรจน์</option>
+            <option>คุณ ณัฐณิชา แก้วมหาดไทย</option>
+            <option>คุณ ภัทรธิดา สุวรรณประทีป</option>
+            <option>คุณ อภิสิทธิ์ หรรษาภิรมย์โชค</option>
+            <option>คุณ ชฎารัตน์ ธุมา</option>
+            <option>คุณ อาทิตยา อิสสรานุสรณ์</option>
+            <option>คุณ ภัทรสุดา บุญญศรี</option>
+            <option>คุณ กรรญารัตน์ สุทธิสน</option>
+            <option>คุณ รมิดา วงศานิตย์</option>
+            <option>คุณ ปวริศา ตั้งตุลานนท์</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="fgroup">
+          <label>Total Revenue (บาท, excl. VAT)</label>
+          <input id="totalRevenue" type="number" placeholder="0" min="0">
+        </div>
+        <div class="fgroup">
+          <label>Tier / สเกลงาน</label>
+          <div class="tier-row" id="tierRow">
+            <button class="tier-btn" data-tier="A" onclick="selectTier('A')">A<span>Premium<br>Commercial</span></button>
+            <button class="tier-btn" data-tier="B" onclick="selectTier('B')">B<span>Standard<br>Branded</span></button>
+            <button class="tier-btn" data-tier="C" onclick="selectTier('C')">C<span>Editorial<br>Quick Clip</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Revenue ───────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">
+      Revenue Items
+      <button class="btn btn-xs btn-blue" onclick="addRev()">+ เพิ่ม</button>
+    </div>
+    <div class="card-body" style="padding:10px">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th class="no-col">#</th>
+            <th style="min-width:130px">ประเภท / Items</th>
+            <th style="min-width:170px">Description</th>
+            <th class="amt-col">Amount (฿)</th>
+            <th style="min-width:150px">Outlets</th>
+            <th class="del-col"></th>
+          </tr></thead>
+          <tbody id="revBody"></tbody>
+        </table>
+      </div>
+      <button class="add-row" onclick="addRev()">+ เพิ่ม revenue item</button>
+    </div>
+  </div>
+
+  <!-- ─── Cost ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">
+      Cost Items (Outsource)
+      <button class="btn btn-xs btn-blue" onclick="addCost()">+ เพิ่ม</button>
+    </div>
+    <div class="card-body" style="padding:10px">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th class="no-col">#</th>
+            <th style="min-width:180px">ตำแหน่ง / Category</th>
+            <th style="min-width:140px">Description</th>
+            <th class="qty-col">จำนวน</th>
+            <th class="amt-col">Rate (฿)</th>
+            <th class="amt-col">Total (฿)</th>
+            <th class="del-col"></th>
+          </tr></thead>
+          <tbody id="costBody"></tbody>
+        </table>
+      </div>
+      <button class="add-row" onclick="addCost()">+ เพิ่ม cost item</button>
+    </div>
+  </div>
+
+  <!-- ─── Summary ───────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">Summary</div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; text-align:center;">
+        <div style="background:#f0f7ff; border-radius:6px; padding:12px 8px;">
+          <div style="font-size:11px; color:#6c757d; font-weight:700; text-transform:uppercase; margin-bottom:4px">Total Revenue</div>
+          <div id="sumRev" style="font-size:20px; font-weight:800; color:#0d3b6e">฿0</div>
+        </div>
+        <div style="background:#f0fff0; border-radius:6px; padding:12px 8px;">
+          <div style="font-size:11px; color:#6c757d; font-weight:700; text-transform:uppercase; margin-bottom:4px">Total Cost</div>
+          <div id="sumCost" style="font-size:20px; font-weight:800; color:#1e3a1e">฿0</div>
+        </div>
+        <div style="background:#fff8f0; border-radius:6px; padding:12px 8px;">
+          <div style="font-size:11px; color:#6c757d; font-weight:700; text-transform:uppercase; margin-bottom:4px">Gross Margin</div>
+          <div id="sumGM" style="font-size:20px; font-weight:800; color:#6c0000">฿0</div>
+          <div id="sumGMPct" style="font-size:12px; color:#6c757d; margin-top:2px">— %</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Generate ─────────────────────────────────────────── -->
+  <div id="alert"></div>
+  <div id="loading"><div class="sp"></div>กำลังสร้างไฟล์…</div>
+  <div class="gen-section">
+    <button class="gen-btn" id="genBtn" onclick="generate()">⬇ ดาวน์โหลด Cost Sheet (.xls)</button>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<script>
+// ══════════════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════════════
+const RATE_DATA = {
+  A: {
+    'Videographer (Outsource)':       { median:3000,  p75:6240,  n:21 },
+    'Photographer (Outsource)':       { median:26605, p75:38302, n:2  },
+    'Editor (Outsource)':             { median:16000, p75:24000, n:5  },
+    'Colorist (Outsource)':           { median:15000, p75:15000, n:1  },
+    'Sound Engineer (Outsource)':     { median:3000,  p75:3250,  n:1  },
+    'Voice Over (Outsource)':         { median:4000,  p75:4000,  n:0  },
+    'ค่าเช่าอุปกรณ์':                  { median:16800, p75:16800, n:33 },
+    'Production Design (Outsource)':  { median:45240, p75:50960, n:4  },
+    'Location':                       { median:19353, p75:35425, n:4  },
+    'Catering (Outsource)':           { median:11250, p75:13950, n:4  },
+    'Assistant Director (Outsource)': { median:7500,  p75:8750,  n:2  },
+    'ช่างแต่งหน้า':                    { median:3000,  p75:3000,  n:1  },
+    'Retouch Photo (Outsource)':      { median:15450, p75:15450, n:1  },
+    'Creative (Outsource)':           { median:6000,  p75:6000,  n:0  },
+    'ค่าทำซับ/แปลภาษา':               { median:1540,  p75:2035,  n:0  },
+  },
+  B: {
+    'Videographer (Outsource)':       { median:3210,  p75:4250,  n:21 },
+    'Photographer (Outsource)':       { median:10500, p75:13750, n:2  },
+    'Editor (Outsource)':             { median:9500,  p75:11500, n:10 },
+    'Colorist (Outsource)':           { median:15000, p75:15000, n:6  },
+    'Sound Engineer (Outsource)':     { median:3000,  p75:3250,  n:3  },
+    'Voice Over (Outsource)':         { median:4000,  p75:4000,  n:1  },
+    'ค่าเช่าอุปกรณ์':                  { median:6500,  p75:12870, n:34 },
+    'Production Design (Outsource)':  { median:12500, p75:18000, n:1  },
+    'Location':                       { median:7505,  p75:7505,  n:1  },
+    'ช่างแต่งหน้า':                    { median:3500,  p75:3500,  n:0  },
+    'Creative (Outsource)':           { median:6000,  p75:6000,  n:1  },
+    'ค่าทำซับ/แปลภาษา':               { median:1540,  p75:2035,  n:4  },
+  },
+  C: {
+    'Videographer (Outsource)':       { median:3120,  p75:3120,  n:3  },
+    'Photographer (Outsource)':       { median:4000,  p75:4000,  n:1  },
+    'Editor (Outsource)':             { median:5000,  p75:16750, n:10 },
+    'Sound Engineer (Outsource)':     { median:3000,  p75:3000,  n:2  },
+    'ค่าเช่าอุปกรณ์':                  { median:3745,  p75:5720,  n:9  },
+    'Production Design (Outsource)':  { median:7000,  p75:12500, n:3  },
+    'ช่างแต่งหน้า':                    { median:3750,  p75:5625,  n:10 },
+    'ค่าทำซับ/แปลภาษา':               { median:200,   p75:400,   n:4  },
+  },
+};
+
+const OUTLETS = [
+  'THE STANDARD NEWS','The STANDARD POP','The STANDARD LIFE','The STANDARD WEALTH',
+  'The Secret Sauce','KND','THE STANDARD PODCAST','THE STANDARD SPORT',
+  'Event + Virtual Event','Content Agency','Center',
+];
+
+const PRODUCT_TYPES = [
+  { name:'Article',                          code:'A'  },
+  { name:'Video',                            code:'V'  },
+  { name:'Live',                             code:'L'  },
+  { name:'Event Planning & Management',      code:'EP' },
+  { name:'Boostpost & Management',           code:'BP' },
+  { name:'Boostpost & Management Fee',       code:'BF' },
+  { name:'Banner',                           code:'BN' },
+  { name:'Event - Ticket Sales',             code:'ET' },
+  { name:'Event - Sponsorships',             code:'ES' },
+  { name:'Event - Others',                   code:'EO' },
+  { name:'Print Media, Goods & Merchandise', code:'G'  },
+];
+
+const ALL_POSITIONS = [
+  'Videographer (Outsource)',
+  'Photographer (Outsource)',
+  'Editor (Outsource)',
+  'Colorist (Outsource)',
+  'Sound Engineer (Outsource)',
+  'Voice Over (Outsource)',
+  'ค่าเช่าอุปกรณ์',
+  'Production Design (Outsource)',
+  'Location',
+  'Catering (Outsource)',
+  'Assistant Director (Outsource)',
+  'ช่างแต่งหน้า',
+  'Retouch Photo (Outsource)',
+  'Creative (Outsource)',
+  'ค่าทำซับ/แปลภาษา',
+  'Food/Travelling cost',
+  'Outsource cost - Others / Misc.',
+  'Boostpost cost',
+  'Printing cost',
+  'Consumables cost',
+];
+
+const TIER_LABEL = {
+  A: 'Tier A — Premium Commercial',
+  B: 'Tier B — Standard Branded / Advertorial',
+  C: 'Tier C — Editorial / Quick Clip',
+};
+
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let tier = 'B';
+let revN = 0;
+let costN = 0;
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+window.onload = () => {
+  document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+  selectTier('B');
+  addRev(); addRev();
+  addCost(); addCost();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  TIER
+// ══════════════════════════════════════════════════════════════
+function selectTier(t) {
+  tier = t;
+  document.querySelectorAll('.tier-btn').forEach(b => {
+    b.className = 'tier-btn';
+    if (b.dataset.tier === t) b.classList.add('sel-' + t);
+  });
+  document.querySelectorAll('.cost-cat').forEach(s => refreshChips(s));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  REVENUE ROWS
+// ══════════════════════════════════════════════════════════════
+function addRev() {
+  revN++;
+  const n = revN;
+  const typeOpts = PRODUCT_TYPES.map(p => `<option value="${p.name}" data-code="${p.code}">${p.name}</option>`).join('');
+  const outOpts  = OUTLETS.map(o => `<option>${o}</option>`).join('');
+  const tr = document.createElement('tr');
+  tr.id = 'rv-' + n;
+  tr.innerHTML = `
+    <td class="no-col">${n}</td>
+    <td><select class="rv-type" style="width:100%"><option value="">— เลือก —</option>${typeOpts}</select></td>
+    <td><input type="text" class="rv-desc" placeholder="รายละเอียด" style="width:100%"></td>
+    <td><input type="number" class="rv-amt" placeholder="0" min="0" style="width:100%" oninput="updateSummary()"></td>
+    <td><select class="rv-out" style="width:100%"><option value="">— เลือก —</option>${outOpts}</select></td>
+    <td><button class="btn btn-xs btn-red" onclick="delRow('rv-${n}','revBody')">×</button></td>`;
+  document.getElementById('revBody').appendChild(tr);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COST ROWS
+// ══════════════════════════════════════════════════════════════
+function addCost() {
+  costN++;
+  const n = costN;
+  const posOpts = ALL_POSITIONS.map(p => `<option value="${p}">${p}</option>`).join('');
+  const tr = document.createElement('tr');
+  tr.id = 'cs-' + n;
+  tr.innerHTML = `
+    <td class="no-col">${n}</td>
+    <td>
+      <select class="cost-cat" style="width:100%; font-size:11px" onchange="refreshChips(this)">
+        <option value="">— เลือก —</option>${posOpts}
+      </select>
+      <div class="chips" id="chips-${n}"></div>
+    </td>
+    <td><input type="text" class="cost-desc" placeholder="รายละเอียด" style="width:100%"></td>
+    <td><input type="number" class="cost-qty" value="1" min="1" style="width:100%" oninput="calcRow('cs-${n}')"></td>
+    <td><input type="number" class="cost-rate" placeholder="0" style="width:100%" oninput="calcRow('cs-${n}')"></td>
+    <td><input type="number" class="cost-total" placeholder="0" style="width:100%; background:#f8f9fa; border-color:#eee" readonly></td>
+    <td><button class="btn btn-xs btn-red" onclick="delRow('cs-${n}','costBody')">×</button></td>`;
+  document.getElementById('costBody').appendChild(tr);
+}
+
+function refreshChips(sel) {
+  const tr = sel.closest('tr');
+  if (!tr) return;
+  const n = tr.id.replace('cs-','');
+  const chipsDiv = document.getElementById('chips-' + n);
+  if (!chipsDiv) return;
+  const rd = (RATE_DATA[tier] || {})[sel.value];
+  chipsDiv.innerHTML = rd
+    ? `<span class="chip c-med" onclick="setRate('cs-${n}',${rd.median})" title="Median จาก data จริง (n=${rd.n})">Median ฿${rd.median.toLocaleString()}</span>
+       <span class="chip c-p75" onclick="setRate('cs-${n}',${rd.p75})" title="P75 — งบ buffer">P75 ฿${rd.p75.toLocaleString()}</span>
+       <span class="chip c-ref">n=${rd.n}</span>`
+    : '';
+}
+
+function setRate(id, rate) {
+  const row = document.getElementById(id);
+  row.querySelector('.cost-rate').value = rate;
+  calcRow(id);
+}
+
+function calcRow(id) {
+  const row = document.getElementById(id);
+  const qty  = parseFloat(row.querySelector('.cost-qty').value)  || 0;
+  const rate = parseFloat(row.querySelector('.cost-rate').value) || 0;
+  row.querySelector('.cost-total').value = qty * rate;
+  updateSummary();
+}
+
+function delRow(id, tbody) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  renum(tbody);
+  updateSummary();
+}
+
+function renum(tbodyId) {
+  document.querySelectorAll('#' + tbodyId + ' tr').forEach((tr, i) => {
+    const nc = tr.querySelector('.no-col');
+    if (nc) nc.textContent = i + 1;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LIVE SUMMARY
+// ══════════════════════════════════════════════════════════════
+function updateSummary() {
+  let rev = 0, cost = 0;
+  document.querySelectorAll('.rv-amt').forEach(el  => rev  += parseFloat(el.value) || 0);
+  document.querySelectorAll('.cost-total').forEach(el => cost += parseFloat(el.value) || 0);
+  const gm  = rev - cost;
+  const pct = rev > 0 ? (gm / rev * 100) : 0;
+  const fmt = n => '฿' + n.toLocaleString('th-TH', { maximumFractionDigits:0 });
+  document.getElementById('sumRev').textContent  = fmt(rev);
+  document.getElementById('sumCost').textContent = fmt(cost);
+  document.getElementById('sumGM').textContent   = fmt(gm);
+  document.getElementById('sumGMPct').textContent = pct.toFixed(1) + '%';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COLLECT DATA
+// ══════════════════════════════════════════════════════════════
+function collectData() {
+  const title = document.getElementById('title').value.trim();
+  if (!title) { showAlert('กรุณากรอก Project Title', 'err'); return null; }
+
+  const revItems = [];
+  document.querySelectorAll('#revBody tr').forEach((tr, i) => {
+    const type    = tr.querySelector('.rv-type').value;
+    const desc    = tr.querySelector('.rv-desc').value;
+    const amount  = parseFloat(tr.querySelector('.rv-amt').value) || 0;
+    const outlets = tr.querySelector('.rv-out').value;
+    if (type || desc || amount) {
+      const pt = PRODUCT_TYPES.find(p => p.name === type);
+      revItems.push({ no: i+1, type, description: desc, amount, outlets, itemCode: pt ? pt.code : '' });
+    }
+  });
+
+  const costItems = [];
+  document.querySelectorAll('#costBody tr').forEach((tr, i) => {
+    const cat   = tr.querySelector('.cost-cat').value;
+    const desc  = tr.querySelector('.cost-desc').value;
+    const qty   = parseFloat(tr.querySelector('.cost-qty').value)  || 1;
+    const rate  = parseFloat(tr.querySelector('.cost-rate').value) || 0;
+    const total = parseFloat(tr.querySelector('.cost-total').value) || rate;
+    if (cat || desc || rate) {
+      costItems.push({ no: i+1, category: cat, description: desc, qty, rate, amount: total || rate, payment: 'จ่ายผ่านบัญชี' });
+    }
+  });
+
+  return {
+    title,
+    tier,
+    date: document.getElementById('startDate').value,
+    ae:   document.getElementById('ae').value,
+    pm:   document.getElementById('pm').value,
+    totalRevenue: parseFloat(document.getElementById('totalRevenue').value) || 0,
+    revItems,
+    costItems,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  GENERATE — client-side SpreadsheetML (no external library)
+// ══════════════════════════════════════════════════════════════
+function generate() {
+  const d = collectData();
+  if (!d) return;
+  document.getElementById('genBtn').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('alert').style.display = 'none';
+  try {
+    const xml = buildSpreadsheetML(d);
+    const blob = new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safe = d.title.replace(/[\\/:*?"<>|]/g, '_').substring(0, 50);
+    a.href = url; a.download = safe + '_CostSheet.xls';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showAlert('ดาวน์โหลดสำเร็จ: ' + safe + '_CostSheet.xls', 'ok');
+  } catch (e) {
+    showAlert('Error: ' + e.message, 'err');
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('genBtn').style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SPREADSHEETML BUILDER
+// ══════════════════════════════════════════════════════════════
+function buildSpreadsheetML(d) {
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const c  = (v, sid, tp) => { const t=tp||(typeof v==='number'?'Number':'String'); return `<Cell ss:StyleID="${sid}"><Data ss:Type="${t}">${t==='Number'?(isNaN(+v)?0:+v):esc(v)}</Data></Cell>`; };
+  const mc = (v, sid, across, tp) => { const t=tp||(typeof v==='number'?'Number':'String'); return `<Cell ss:StyleID="${sid}" ss:MergeAcross="${across}"><Data ss:Type="${t}">${t==='Number'?(isNaN(+v)?0:+v):esc(v)}</Data></Cell>`; };
+  const ec = sid => `<Cell ss:StyleID="${sid}"/>`;
+  const row = (cells, h) => `<Row${h?` ss:Height="${h}"`:''}>` + cells + '</Row>';
+
+  const TIERS = { A:'Tier A — Premium Commercial', B:'Tier B — Standard Branded / Advertorial', C:'Tier C — Editorial / Quick Clip' };
+  const dateStr = d.date ? new Date(d.date+'T12:00:00').toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'numeric'}) : '';
+
+  const rows = [];
+  rows.push(row(mc('COST SHEET','sTitle',8), 30));
+
+  [['Project Title',d.title,'Tier',TIERS[d.tier]||d.tier,false],
+   ['Head Project / AE',d.ae||'','Project Manager',d.pm||'',false],
+   ['Starting Date',dateStr,'Total Revenue (excl. VAT)',d.totalRevenue||0,true],
+  ].forEach(([l1,v1,l2,v2,num]) =>
+    rows.push(row(mc(l1,'sLabel',1)+mc(v1,'sValue',2)+c(l2,'sLabel')+mc(v2,num?'sValueN':'sValue',2,num?'Number':'String')))
+  );
+  rows.push(row(''));
+
+  rows.push(row(mc('  REVENUE','sRevHdr',8), 22));
+  rows.push(row(['#','Items / ประเภทรายได้','Description','Amount','Outlets','','Items Code','Product Code',''].map(v=>c(v,'sRevCol')).join(''), 28));
+
+  const revItems = d.revItems.length ? d.revItems : Array(3).fill({});
+  let totalRev = 0;
+  revItems.forEach((it,i) => {
+    const s=i%2?'sRevAlt':'sRevRow', sn=i%2?'sRevAltN':'sRevRowN';
+    const amt=+it.amount||0; totalRev+=amt;
+    rows.push(row(c(it.no||i+1,s,'Number')+c(it.type||'',s)+c(it.description||'',s)+c(amt,sn,'Number')+c(it.outlets||'',s)+ec(s)+c(it.itemCode||'','sCtr')+c(it.productCode||'','sCtr')+ec(s)));
+  });
+  rows.push(row(mc('TOTAL REVENUE','sRevTot',2)+c(totalRev,'sRevTotN','Number')+ec('sRevTot').repeat(5)));
+  rows.push(row('')); rows.push(row(''));
+
+  rows.push(row(mc('  PRODUCTION COST','sCstHdr',8), 22));
+  rows.push(row(['#','Items / Category','Description','Amount','Outlets','Payment','Product Code','Status','Note'].map(v=>c(v,'sCstCol')).join(''), 28));
+
+  const costItems = d.costItems.length ? d.costItems : Array(5).fill({});
+  let totalCost = 0;
+  costItems.forEach((it,i) => {
+    const s=i%2?'sCstAlt':'sCstRow', sn=i%2?'sCstAltN':'sCstRowN';
+    const amt=+it.amount||0; totalCost+=amt;
+    rows.push(row(c(it.no||i+1,s,'Number')+c(it.category||'',s)+c(it.description||'',s)+c(amt,sn,'Number')+c(it.outlets||'',s)+c(it.payment||'จ่ายผ่านบัญชี',s)+c(it.productCode||'','sCtr')+c(it.status||'','sCtr')+c(it.note||'',s)));
+  });
+  rows.push(row(mc('TOTAL COST','sCstTot',2)+c(totalCost,'sCstTotN','Number')+ec('sCstTot').repeat(5)));
+
+  const gm=totalRev-totalCost, gmPct=totalRev>0?gm/totalRev:0;
+  rows.push(row(mc('GROSS MARGIN','sGmBg',2)+c(gm,'sGmAmt','Number')+c(gmPct,'sGmPct','Number')+ec('sGmBg').repeat(4)));
+  rows.push(row('')); rows.push(row(''));
+
+  rows.push(row(mc('______________________________','sSig',3)+ec('sE')+mc('______________________________','sSig',3)));
+  rows.push(row(mc('(                                        )','sSig',3)+ec('sE')+mc('(  ไวกูณฐ์  เอื้อรักษาสัตย์  )','sSig',3)));
+  rows.push(row(mc('ผู้จัดทำและนำเสนอ','sSigHd',3)+ec('sE')+mc('ผู้ตรวจสอบ','sSigHd',3)));
+
+  const COLS = [35,180,204,84,108,96,96,54,132].map(w=>`<Column ss:Width="${w}"/>`).join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<Styles>
+<Style ss:ID="Default"><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="16" ss:Color="#FFFFFF"/><Interior ss:Color="#1A1A2E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sLabel"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10" ss:Color="#495057"/><Interior ss:Color="#F1F3F5" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sValue"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DEE2E6"/></Borders></Style>
+<Style ss:ID="sValueN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="#,##0"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DEE2E6"/></Borders></Style>
+<Style ss:ID="sRevHdr"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="12" ss:Color="#FFFFFF"/><Interior ss:Color="#0D3B6E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevCol"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10" ss:Color="#FFFFFF"/><Interior ss:Color="#1A4A8C" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevRow"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sRevAlt"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0F7FF" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevRowN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sRevAltN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0F7FF" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sRevTot"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0D3B6E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevTotN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0D3B6E" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sCstHdr"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="12" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A1E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstCol"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10" ss:Color="#FFFFFF"/><Interior ss:Color="#2D5A1E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstRow"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sCstAlt"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0FFF0" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstRowN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sCstAltN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0FFF0" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sCstTot"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A1E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstTotN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A1E" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sGmBg"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#6C0000" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sGmAmt"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#6C0000" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sGmPct"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#6C0000" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0%"/></Style>
+<Style ss:ID="sCtr"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sSig"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sSigHd"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10"/></Style>
+<Style ss:ID="sE"><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+</Styles>
+<Worksheet ss:Name="Cost Sheet">
+<Table>${COLS}
+${rows.join('\n')}
+</Table>
+</Worksheet>
+</Workbook>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════════════════════════
+function showAlert(msg, type) {
+  const el = document.getElementById('alert');
+  el.className = type;
+  el.textContent = (type === 'ok' ? '✓ ' : '⚠ ') + msg;
+  el.style.display = 'block';
+  if (type === 'ok') setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+</script>
+</body>
+</html>
