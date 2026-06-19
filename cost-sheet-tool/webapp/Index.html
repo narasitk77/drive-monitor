@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cost Sheet Generator</title>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     /* ── Reset ──────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -90,6 +89,20 @@
     .del-col { width: 28px; }
     .amt-col { width: 80px; }
     .qty-col { width: 46px; }
+
+    /* ── Price lookup ───────────────────────────────────────── */
+    .pl-toggle { width: 100%; padding: 8px 14px; background: #f8f0ff; border: 1px solid #d8b4fe; border-radius: 6px; color: #6d28d9; font-size: 12px; font-weight: 700; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 6px; font-family: inherit; margin-bottom: 4px; }
+    .pl-toggle:hover { background: #ede9fe; }
+    .pl-box { display: none; background: #fff; border: 1px solid #d8b4fe; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+    .pl-box.open { display: block; }
+    .pl-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .pl-row input { flex: 1; }
+    .pl-row button { padding: 7px 14px; background: #6d28d9; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; }
+    .pl-row button:hover { background: #5b21b6; }
+    #pl-results table { font-size: 11px; }
+    #pl-results th { background: #f5f3ff; color: #5b21b6; }
+    #pl-results td.price { font-weight: 700; color: #059669; }
+    #pl-empty { color: #9ca3af; font-size: 12px; padding: 8px 0; }
   </style>
 </head>
 <body>
@@ -100,6 +113,18 @@
 </div>
 
 <div class="wrap">
+
+  <!-- ─── Price Lookup ─────────────────────────────────────── -->
+  <button class="pl-toggle" onclick="document.getElementById('pl-box').classList.toggle('open');this.querySelector('.pl-arrow').textContent=document.getElementById('pl-box').classList.contains('open')?'▲':'▼'">
+    <span>💰</span> ค้นหาราคาอุปกรณ์จาก vendor <span class="pl-arrow">▼</span>
+  </button>
+  <div id="pl-box" class="pl-box">
+    <div class="pl-row">
+      <input id="pl-q" type="text" placeholder="พิมพ์ชื่ออุปกรณ์ เช่น Alexa, Aputure, DJI..." onkeydown="if(event.key==='Enter')plSearch()">
+      <button onclick="plSearch()">🔍 ค้นหา</button>
+    </div>
+    <div id="pl-results"></div>
+  </div>
 
   <!-- ─── Project Info ──────────────────────────────────────── -->
   <div class="card">
@@ -263,7 +288,7 @@
   <div id="alert"></div>
   <div id="loading"><div class="sp"></div>กำลังสร้างไฟล์…</div>
   <div class="gen-section">
-    <button class="gen-btn" id="genBtn" onclick="generate()">⬇ ดาวน์โหลด Cost Sheet (.xlsx)</button>
+    <button class="gen-btn" id="genBtn" onclick="generate()">⬇ ดาวน์โหลด Cost Sheet (.xls)</button>
   </div>
 
 </div><!-- /wrap -->
@@ -542,203 +567,164 @@ function collectData() {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  GENERATE XLSX
+//  GENERATE — client-side SpreadsheetML (no external library)
 // ══════════════════════════════════════════════════════════════
 function generate() {
   const d = collectData();
   if (!d) return;
-
   document.getElementById('genBtn').style.display = 'none';
   document.getElementById('loading').style.display = 'block';
   document.getElementById('alert').style.display = 'none';
-
   try {
-    const wb = XLSX.utils.book_new();
-    const ws = buildSheet(d);
-    XLSX.utils.book_append_sheet(wb, ws, 'Cost Sheet');
+    const xml = buildSpreadsheetML(d);
+    const blob = new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     const safe = d.title.replace(/[\\/:*?"<>|]/g, '_').substring(0, 50);
-    XLSX.writeFile(wb, safe + '_CostSheet.xlsx');
-    showAlert('ดาวน์โหลดสำเร็จ: ' + safe + '_CostSheet.xlsx', 'ok');
+    a.href = url; a.download = safe + '_CostSheet.xls';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showAlert('ดาวน์โหลดสำเร็จ: ' + safe + '_CostSheet.xls', 'ok');
   } catch (e) {
     showAlert('Error: ' + e.message, 'err');
   } finally {
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('genBtn').style.display  = 'block';
+    document.getElementById('genBtn').style.display = 'block';
   }
 }
 
 // ══════════════════════════════════════════════════════════════
-//  SHEET BUILDER
+//  SPREADSHEETML BUILDER
 // ══════════════════════════════════════════════════════════════
-function buildSheet(d) {
-  const ws = {};
-  const merges = [];
-  let r = 0; // 0-based row index
+function buildSpreadsheetML(d) {
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const c  = (v, sid, tp) => { const t=tp||(typeof v==='number'?'Number':'String'); return `<Cell ss:StyleID="${sid}"><Data ss:Type="${t}">${t==='Number'?(isNaN(+v)?0:+v):esc(v)}</Data></Cell>`; };
+  const mc = (v, sid, across, tp) => { const t=tp||(typeof v==='number'?'Number':'String'); return `<Cell ss:StyleID="${sid}" ss:MergeAcross="${across}"><Data ss:Type="${t}">${t==='Number'?(isNaN(+v)?0:+v):esc(v)}</Data></Cell>`; };
+  const ec = sid => `<Cell ss:StyleID="${sid}"/>`;
+  const row = (cells, h) => `<Row${h?` ss:Height="${h}"`:''}>` + cells + '</Row>';
 
-  // Styles
-  const S = {
-    title: { font:{bold:true, sz:16, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1A2E'}}, alignment:{horizontal:'center', vertical:'center'} },
-    label: { font:{bold:true, sz:10, color:{rgb:'495057'}}, fill:{fgColor:{rgb:'F1F3F5'}}, alignment:{horizontal:'right', vertical:'center'} },
-    value: { alignment:{vertical:'center'}, border:{bottom:{style:'thin',color:{rgb:'DEE2E6'}}} },
-    revHdr:{ font:{bold:true, sz:12, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'0D3B6E'}}, alignment:{vertical:'center'} },
-    revCol:{ font:{bold:true, sz:10, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A4A8C'}}, alignment:{horizontal:'center'} },
-    revRow:{ alignment:{vertical:'center'} },
-    revAlt:{ fill:{fgColor:{rgb:'F0F7FF'}}, alignment:{vertical:'center'} },
-    revTot:{ font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'0D3B6E'}}, alignment:{horizontal:'right'} },
-    revTotAmt:{ font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'0D3B6E'}}, numFmt:'#,##0' },
-    cstHdr:{ font:{bold:true, sz:12, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1E3A1E'}}, alignment:{vertical:'center'} },
-    cstCol:{ font:{bold:true, sz:10, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'2D5A1E'}}, alignment:{horizontal:'center'} },
-    cstRow:{ alignment:{vertical:'center'} },
-    cstAlt:{ fill:{fgColor:{rgb:'F0FFF0'}}, alignment:{vertical:'center'} },
-    cstTot:{ font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1E3A1E'}}, alignment:{horizontal:'right'} },
-    cstTotAmt:{ font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1E3A1E'}}, numFmt:'#,##0' },
-    gmBg:  { font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'6C0000'}}, alignment:{horizontal:'right'} },
-    gmAmt: { font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'6C0000'}}, numFmt:'#,##0' },
-    gmPct: { font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'6C0000'}}, numFmt:'0.0%' },
-    num:   { numFmt:'#,##0', alignment:{horizontal:'right'} },
-    sig:   { alignment:{horizontal:'center'} },
-    sigHd: { font:{bold:true}, alignment:{horizontal:'center'} },
-  };
+  const TIERS = { A:'Tier A — Premium Commercial', B:'Tier B — Standard Branded / Advertorial', C:'Tier C — Editorial / Quick Clip' };
+  const dateStr = d.date ? new Date(d.date+'T12:00:00').toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'numeric'}) : '';
 
-  // Helper: set a cell
-  const set = (row, col, v, s, t) => {
-    const ref = XLSX.utils.encode_cell({ r: row, c: col });
-    ws[ref] = { v: v ?? '', t: t || (typeof v === 'number' ? 'n' : 's'), s: s };
-  };
-  // Helper: set merged range (only top-left has value)
-  const mset = (r1, c1, r2, c2, v, s, t) => {
-    merges.push({ s:{r:r1,c:c1}, e:{r:r2,c:c2} });
-    set(r1, c1, v, s, t);
-    // fill merged cells with same style (for background)
-    for (let rr = r1; rr <= r2; rr++)
-      for (let cc = c1; cc <= c2; cc++)
-        if (!(rr === r1 && cc === c1))
-          set(rr, cc, '', s);
-  };
-  // Helper: fill a full row with style
-  const rowFill = (row, style) => {
-    for (let c = 0; c < 9; c++) {
-      const ref = XLSX.utils.encode_cell({r:row, c});
-      if (!ws[ref]) ws[ref] = { v:'', t:'s', s: style };
-      else ws[ref].s = { ...ws[ref].s, ...style };
-    }
-  };
+  const rows = [];
+  rows.push(row(mc('COST SHEET','sTitle',8), 30));
 
-  const N = 9; // columns A–I
+  [['Project Title',d.title,'Tier',TIERS[d.tier]||d.tier,false],
+   ['Head Project / AE',d.ae||'','Project Manager',d.pm||'',false],
+   ['Starting Date',dateStr,'Total Revenue (excl. VAT)',d.totalRevenue||0,true],
+  ].forEach(([l1,v1,l2,v2,num]) =>
+    rows.push(row(mc(l1,'sLabel',1)+mc(v1,'sValue',2)+c(l2,'sLabel')+mc(v2,num?'sValueN':'sValue',2,num?'Number':'String')))
+  );
+  rows.push(row(''));
 
-  // ── Title ─────────────────────────────────────────────────
-  mset(r, 0, r, N-1, 'COST SHEET', S.title); r++;
+  rows.push(row(mc('  REVENUE','sRevHdr',8), 22));
+  rows.push(row(['#','Items / ประเภทรายได้','Description','Amount','Outlets','','Items Code','Product Code',''].map(v=>c(v,'sRevCol')).join(''), 28));
 
-  // ── Info rows ─────────────────────────────────────────────
-  const dateStr = d.date
-    ? new Date(d.date + 'T12:00:00').toLocaleDateString('th-TH', { day:'2-digit', month:'short', year:'numeric' })
-    : '';
-
-  const infoData = [
-    ['Project Title', d.title,          'Tier',                TIER_LABEL[d.tier] || d.tier],
-    ['Head Project / AE', d.ae || '',   'Project Manager',     d.pm || ''],
-    ['Starting Date', dateStr,          'Total Revenue (excl. VAT)', d.totalRevenue || 0],
-  ];
-
-  infoData.forEach(([l1, v1, l2, v2]) => {
-    mset(r,0,r,1, l1, S.label);
-    mset(r,2,r,4, v1, S.value);
-    set(r,5, l2, S.label);
-    mset(r,6,r,8, v2, typeof v2 === 'number' ? {...S.value, ...S.num} : S.value,
-         typeof v2 === 'number' ? 'n' : 's');
-    r++;
-  });
-  r++; // spacer
-
-  // ── Revenue section ───────────────────────────────────────
-  mset(r,0,r,N-1, '  REVENUE', S.revHdr); r++;
-  const revCols = ['#','Items / ประเภทรายได้','Description','Amount','Outlets','','Items Code','Product Code',''];
-  revCols.forEach((v, c) => set(r, c, v, S.revCol));
-  r++;
-
-  const revStart = r;
-  const revItems = d.revItems.length > 0 ? d.revItems : Array(3).fill({});
+  const revItems = d.revItems.length ? d.revItems : Array(3).fill({});
   let totalRev = 0;
-  revItems.forEach((item, i) => {
-    const s = i % 2 === 0 ? S.revRow : S.revAlt;
-    set(r,0, item.no || i+1, s);
-    set(r,1, item.type || '', s);
-    set(r,2, item.description || '', s);
-    set(r,3, item.amount || '', { ...s, ...S.num }, typeof (item.amount||'') === 'number' ? 'n' : 's');
-    set(r,4, item.outlets || '', s);
-    set(r,5, '', s);
-    set(r,6, item.itemCode || '', { ...s, alignment:{horizontal:'center'} });
-    set(r,7, item.productCode || '', { ...s, alignment:{horizontal:'center'} });
-    set(r,8, '', s);
-    totalRev += parseFloat(item.amount) || 0;
-    r++;
+  revItems.forEach((it,i) => {
+    const s=i%2?'sRevAlt':'sRevRow', sn=i%2?'sRevAltN':'sRevRowN';
+    const amt=+it.amount||0; totalRev+=amt;
+    rows.push(row(c(it.no||i+1,s,'Number')+c(it.type||'',s)+c(it.description||'',s)+c(amt,sn,'Number')+c(it.outlets||'',s)+ec(s)+c(it.itemCode||'','sCtr')+c(it.productCode||'','sCtr')+ec(s)));
   });
+  rows.push(row(mc('TOTAL REVENUE','sRevTot',2)+c(totalRev,'sRevTotN','Number')+ec('sRevTot').repeat(5)));
+  rows.push(row('')); rows.push(row(''));
 
-  mset(r,0,r,2, 'TOTAL REVENUE', S.revTot);
-  set(r,3, totalRev, S.revTotAmt, 'n');
-  for (let c = 4; c < N; c++) set(r, c, '', S.revTot);
-  const revTotalRow = r;
-  r += 2;
+  rows.push(row(mc('  PRODUCTION COST','sCstHdr',8), 22));
+  rows.push(row(['#','Items / Category','Description','Amount','Outlets','Payment','Product Code','Status','Note'].map(v=>c(v,'sCstCol')).join(''), 28));
 
-  // ── Cost section ──────────────────────────────────────────
-  mset(r,0,r,N-1, '  PRODUCTION COST', S.cstHdr); r++;
-  const cstCols = ['#','Items / Category','Description','Amount','Outlets','Payment','Product Code','Status','Note'];
-  cstCols.forEach((v,c) => set(r,c,v,S.cstCol));
-  r++;
-
-  const costStart = r;
-  const costItems = d.costItems.length > 0 ? d.costItems : Array(5).fill({});
+  const costItems = d.costItems.length ? d.costItems : Array(5).fill({});
   let totalCost = 0;
-  costItems.forEach((item, i) => {
-    const s = i % 2 === 0 ? S.cstRow : S.cstAlt;
-    set(r,0, item.no || i+1, s);
-    set(r,1, item.category || '', s);
-    set(r,2, item.description || '', s);
-    set(r,3, item.amount || '', { ...s, ...S.num }, typeof (item.amount||'') === 'number' ? 'n' : 's');
-    set(r,4, item.outlets || '', s);
-    set(r,5, item.payment || 'จ่ายผ่านบัญชี', s);
-    set(r,6, item.productCode || '', { ...s, alignment:{horizontal:'center'} });
-    set(r,7, item.status || '', { ...s, alignment:{horizontal:'center'} });
-    set(r,8, item.note || '', s);
-    totalCost += parseFloat(item.amount) || 0;
-    r++;
+  costItems.forEach((it,i) => {
+    const s=i%2?'sCstAlt':'sCstRow', sn=i%2?'sCstAltN':'sCstRowN';
+    const amt=+it.amount||0; totalCost+=amt;
+    rows.push(row(c(it.no||i+1,s,'Number')+c(it.category||'',s)+c(it.description||'',s)+c(amt,sn,'Number')+c(it.outlets||'',s)+c(it.payment||'จ่ายผ่านบัญชี',s)+c(it.productCode||'','sCtr')+c(it.status||'','sCtr')+c(it.note||'',s)));
   });
+  rows.push(row(mc('TOTAL COST','sCstTot',2)+c(totalCost,'sCstTotN','Number')+ec('sCstTot').repeat(5)));
 
-  mset(r,0,r,2, 'TOTAL COST', S.cstTot);
-  set(r,3, totalCost, S.cstTotAmt, 'n');
-  for (let c = 4; c < N; c++) set(r,c,'',S.cstTot);
-  const costTotalRow = r;
-  r++;
+  const gm=totalRev-totalCost, gmPct=totalRev>0?gm/totalRev:0;
+  rows.push(row(mc('GROSS MARGIN','sGmBg',2)+c(gm,'sGmAmt','Number')+c(gmPct,'sGmPct','Number')+ec('sGmBg').repeat(4)));
+  rows.push(row('')); rows.push(row(''));
 
-  // ── Gross Margin ──────────────────────────────────────────
-  const gm = totalRev - totalCost;
-  const gmPct = totalRev > 0 ? gm / totalRev : 0;
-  mset(r,0,r,2, 'GROSS MARGIN', S.gmBg);
-  set(r,3, gm, S.gmAmt, 'n');
-  set(r,4, gmPct, S.gmPct, 'n');
-  for (let c = 5; c < N; c++) set(r,c,'',S.gmBg);
-  r += 2;
+  rows.push(row(mc('______________________________','sSig',3)+ec('sE')+mc('______________________________','sSig',3)));
+  rows.push(row(mc('(                                        )','sSig',3)+ec('sE')+mc('(  ไวกูณฐ์  เอื้อรักษาสัตย์  )','sSig',3)));
+  rows.push(row(mc('ผู้จัดทำและนำเสนอ','sSigHd',3)+ec('sE')+mc('ผู้ตรวจสอบ','sSigHd',3)));
 
-  // ── Signature ─────────────────────────────────────────────
-  mset(r,0,r,3, '______________________________', S.sig); mset(r,5,r,8, '______________________________', S.sig); r++;
-  mset(r,0,r,3, '(                                        )', S.sig); mset(r,5,r,8, '(  ไวกูณฐ์  เอื้อรักษาสัตย์  )', S.sig); r++;
-  mset(r,0,r,3, 'ผู้จัดทำและนำเสนอ', S.sigHd); mset(r,5,r,8, 'ผู้ตรวจสอบ', S.sigHd); r++;
+  const COLS = [35,180,204,84,108,96,96,54,132].map(w=>`<Column ss:Width="${w}"/>`).join('');
 
-  // ── Sheet metadata ────────────────────────────────────────
-  ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:r-1, c:N-1} });
-  ws['!merges'] = merges;
-  ws['!cols'] = [
-    {wch:5}, {wch:30}, {wch:34}, {wch:14},
-    {wch:18}, {wch:16}, {wch:16}, {wch:9}, {wch:22},
-  ];
-  ws['!rows'] = [{ hpt:30 }]; // title row height
-
-  return ws;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<Styles>
+<Style ss:ID="Default"><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="16" ss:Color="#FFFFFF"/><Interior ss:Color="#1A1A2E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sLabel"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10" ss:Color="#495057"/><Interior ss:Color="#F1F3F5" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sValue"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DEE2E6"/></Borders></Style>
+<Style ss:ID="sValueN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="#,##0"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DEE2E6"/></Borders></Style>
+<Style ss:ID="sRevHdr"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="12" ss:Color="#FFFFFF"/><Interior ss:Color="#0D3B6E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevCol"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10" ss:Color="#FFFFFF"/><Interior ss:Color="#1A4A8C" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevRow"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sRevAlt"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0F7FF" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevRowN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sRevAltN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0F7FF" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sRevTot"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0D3B6E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sRevTotN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0D3B6E" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sCstHdr"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="12" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A1E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstCol"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10" ss:Color="#FFFFFF"/><Interior ss:Color="#2D5A1E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstRow"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sCstAlt"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0FFF0" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstRowN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sCstAltN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Interior ss:Color="#F0FFF0" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sCstTot"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A1E" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sCstTotN"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E3A1E" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sGmBg"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#6C0000" ss:Pattern="Solid"/></Style>
+<Style ss:ID="sGmAmt"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#6C0000" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
+<Style ss:ID="sGmPct"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#6C0000" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0%"/></Style>
+<Style ss:ID="sCtr"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sSig"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+<Style ss:ID="sSigHd"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Bold="1" ss:Size="10"/></Style>
+<Style ss:ID="sE"><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+</Styles>
+<Worksheet ss:Name="Cost Sheet">
+<Table>${COLS}
+${rows.join('\n')}
+</Table>
+</Worksheet>
+</Workbook>`;
 }
 
 // ══════════════════════════════════════════════════════════════
 //  UI HELPERS
 // ══════════════════════════════════════════════════════════════
+const PB_URL = 'https://probook.xtec9.xyz'
+
+async function plSearch() {
+  const q = document.getElementById('pl-q').value.trim()
+  const out = document.getElementById('pl-results')
+  if (!q) { out.innerHTML = ''; return }
+  out.innerHTML = '<div id="pl-empty">กำลังค้นหา...</div>'
+  try {
+    const res = await fetch(`${PB_URL}/api/vendor-prices?q=${encodeURIComponent(q)}`)
+    const { prices } = await res.json()
+    if (!prices.length) { out.innerHTML = '<div id="pl-empty">ไม่พบราคา "' + q + '" ในระบบ</div>'; return }
+    const fmt = n => Number(n).toLocaleString('th-TH')
+    out.innerHTML = `<div class="tbl-wrap"><table>
+      <tr><th>Vendor</th><th>หมวด</th><th>รายการ</th><th>Spec</th><th>หน่วย</th><th>ราคา (บาท)</th></tr>
+      ${prices.map(p => `<tr>
+        <td>${p.vendor}</td>
+        <td>${p.category}</td>
+        <td>${p.item}</td>
+        <td>${p.spec || '—'}</td>
+        <td>${p.unit}</td>
+        <td class="price">${fmt(p.pricePerDay)}</td>
+      </tr>`).join('')}
+    </table></div>`
+  } catch (e) {
+    out.innerHTML = '<div id="pl-empty" style="color:#dc3545">⚠ เชื่อมต่อ probook ไม่ได้ — ตรวจสอบ VPN/เครือข่าย</div>'
+  }
+}
+
 function showAlert(msg, type) {
   const el = document.getElementById('alert');
   el.className = type;
