@@ -89,6 +89,20 @@
     .del-col { width: 28px; }
     .amt-col { width: 80px; }
     .qty-col { width: 46px; }
+
+    /* ── Price lookup ───────────────────────────────────────── */
+    .pl-toggle { width: 100%; padding: 8px 14px; background: #f8f0ff; border: 1px solid #d8b4fe; border-radius: 6px; color: #6d28d9; font-size: 12px; font-weight: 700; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 6px; font-family: inherit; margin-bottom: 4px; }
+    .pl-toggle:hover { background: #ede9fe; }
+    .pl-box { display: none; background: #fff; border: 1px solid #d8b4fe; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+    .pl-box.open { display: block; }
+    .pl-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .pl-row input { flex: 1; }
+    .pl-row button { padding: 7px 14px; background: #6d28d9; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; }
+    .pl-row button:hover { background: #5b21b6; }
+    #pl-results table { font-size: 11px; }
+    #pl-results th { background: #f5f3ff; color: #5b21b6; }
+    #pl-results td.price { font-weight: 700; color: #059669; }
+    #pl-empty { color: #9ca3af; font-size: 12px; padding: 8px 0; }
   </style>
 </head>
 <body>
@@ -99,6 +113,18 @@
 </div>
 
 <div class="wrap">
+
+  <!-- ─── Price Lookup ─────────────────────────────────────── -->
+  <button class="pl-toggle" onclick="document.getElementById('pl-box').classList.toggle('open');this.querySelector('.pl-arrow').textContent=document.getElementById('pl-box').classList.contains('open')?'▲':'▼'">
+    <span>💰</span> ค้นหาราคาอุปกรณ์จาก vendor <span class="pl-arrow">▼</span>
+  </button>
+  <div id="pl-box" class="pl-box">
+    <div class="pl-row">
+      <input id="pl-q" type="text" placeholder="พิมพ์ชื่ออุปกรณ์ เช่น Alexa, Aputure, DJI..." onkeydown="if(event.key==='Enter')plSearch()">
+      <button onclick="plSearch()">🔍 ค้นหา</button>
+    </div>
+    <div id="pl-results"></div>
+  </div>
 
   <!-- ─── Project Info ──────────────────────────────────────── -->
   <div class="card">
@@ -671,6 +697,34 @@ ${rows.join('\n')}
 // ══════════════════════════════════════════════════════════════
 //  UI HELPERS
 // ══════════════════════════════════════════════════════════════
+const PB_URL = 'https://probook.xtec9.xyz'
+
+async function plSearch() {
+  const q = document.getElementById('pl-q').value.trim()
+  const out = document.getElementById('pl-results')
+  if (!q) { out.innerHTML = ''; return }
+  out.innerHTML = '<div id="pl-empty">กำลังค้นหา...</div>'
+  try {
+    const res = await fetch(`${PB_URL}/api/vendor-prices?q=${encodeURIComponent(q)}`)
+    const { prices } = await res.json()
+    if (!prices.length) { out.innerHTML = '<div id="pl-empty">ไม่พบราคา "' + q + '" ในระบบ</div>'; return }
+    const fmt = n => Number(n).toLocaleString('th-TH')
+    out.innerHTML = `<div class="tbl-wrap"><table>
+      <tr><th>Vendor</th><th>หมวด</th><th>รายการ</th><th>Spec</th><th>หน่วย</th><th>ราคา (บาท)</th></tr>
+      ${prices.map(p => `<tr>
+        <td>${p.vendor}</td>
+        <td>${p.category}</td>
+        <td>${p.item}</td>
+        <td>${p.spec || '—'}</td>
+        <td>${p.unit}</td>
+        <td class="price">${fmt(p.pricePerDay)}</td>
+      </tr>`).join('')}
+    </table></div>`
+  } catch (e) {
+    out.innerHTML = '<div id="pl-empty" style="color:#dc3545">⚠ เชื่อมต่อ probook ไม่ได้ — ตรวจสอบ VPN/เครือข่าย</div>'
+  }
+}
+
 function showAlert(msg, type) {
   const el = document.getElementById('alert');
   el.className = type;
