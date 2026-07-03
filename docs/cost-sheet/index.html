@@ -699,28 +699,43 @@ ${rows.join('\n')}
 // ══════════════════════════════════════════════════════════════
 const PB_URL = 'https://probook.xtec9.xyz'
 
+// escape API/user text before innerHTML — the price rows come from a remote
+// API, and even a benign vendor name like "A&B Rentals" breaks raw HTML.
+const plEsc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+// generation counter: only the LATEST search may write results (stale slow
+// responses would otherwise overwrite newer ones or a cleared box).
+let plGen = 0
+
 async function plSearch() {
+  const my = ++plGen
   const q = document.getElementById('pl-q').value.trim()
   const out = document.getElementById('pl-results')
   if (!q) { out.innerHTML = ''; return }
   out.innerHTML = '<div id="pl-empty">กำลังค้นหา...</div>'
   try {
     const res = await fetch(`${PB_URL}/api/vendor-prices?q=${encodeURIComponent(q)}`)
-    const { prices } = await res.json()
-    if (!prices.length) { out.innerHTML = '<div id="pl-empty">ไม่พบราคา "' + q + '" ในระบบ</div>'; return }
+    if (my !== plGen) return
+    if (!res.ok) { out.innerHTML = `<div id="pl-empty" style="color:#dc3545">⚠ probook ตอบกลับผิดปกติ (HTTP ${res.status}) — ลองใหม่อีกครั้ง</div>`; return }
+    const data = await res.json()
+    if (my !== plGen) return
+    const prices = Array.isArray(data.prices) ? data.prices : []
+    if (!prices.length) { out.innerHTML = '<div id="pl-empty">ไม่พบราคา "' + plEsc(q) + '" ในระบบ</div>'; return }
     const fmt = n => Number(n).toLocaleString('th-TH')
     out.innerHTML = `<div class="tbl-wrap"><table>
       <tr><th>Vendor</th><th>หมวด</th><th>รายการ</th><th>Spec</th><th>หน่วย</th><th>ราคา (บาท)</th></tr>
       ${prices.map(p => `<tr>
-        <td>${p.vendor}</td>
-        <td>${p.category}</td>
-        <td>${p.item}</td>
-        <td>${p.spec || '—'}</td>
-        <td>${p.unit}</td>
+        <td>${plEsc(p.vendor)}</td>
+        <td>${plEsc(p.category)}</td>
+        <td>${plEsc(p.item)}</td>
+        <td>${plEsc(p.spec) || '—'}</td>
+        <td>${plEsc(p.unit)}</td>
         <td class="price">${fmt(p.pricePerDay)}</td>
       </tr>`).join('')}
     </table></div>`
   } catch (e) {
+    if (my !== plGen) return
     out.innerHTML = '<div id="pl-empty" style="color:#dc3545">⚠ เชื่อมต่อ probook ไม่ได้ — ตรวจสอบ VPN/เครือข่าย</div>'
   }
 }
